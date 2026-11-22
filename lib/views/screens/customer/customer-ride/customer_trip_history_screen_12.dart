@@ -12,12 +12,12 @@ class _CustomerTripHistoryScreenState extends State<CustomerTripHistoryScreen> {
   int _selectedTabIndex = 0; // 0: All, 1: Complete, 2: Cancelled
 
   final List<Map<String, String>> _trips = const [
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
-    {'from': 'Madhapur', 'to': 'Secundrabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
+    {'from': 'Madhapur', 'to': 'Secunderabad', 'dateTime': '20 May 2024 - 09 : 00 AM', 'status': 'Complete'},
   ];
 
   @override
@@ -26,6 +26,7 @@ class _CustomerTripHistoryScreenState extends State<CustomerTripHistoryScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -64,7 +65,7 @@ class _CustomerTripHistoryScreenState extends State<CustomerTripHistoryScreen> {
                 children: [
                   Expanded(child: _buildTabButton('All', 0)),
                   const SizedBox(width: 10),
-                  Expanded(child: _buildTabButton('Complete', 1)),
+                  Expanded(child: _buildTabButton('Completed', 1)),
                   const SizedBox(width: 10),
                   Expanded(child: _buildTabButton('Cancelled', 2)),
                 ],

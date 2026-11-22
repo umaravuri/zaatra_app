@@ -320,6 +320,7 @@ class _DriverPublishRideCalendarScreenState extends State<DriverPublishRideCalen
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -677,7 +678,7 @@ class _DriverPublishRideCalendarScreenState extends State<DriverPublishRideCalen
   Widget _buildPriceTile(int index) {
     final stop = _stopPrices[index];
     final location = stop['location'] as String? ?? '';
-    final price = stop['price'] as int? ?? 850;
+    final price = stop['price'] as int? ?? 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(

@@ -9,16 +9,14 @@ class DriverWrongPinScreen extends StatefulWidget {
   final String rideId;
   final String? bookingId;
   final String? seatNumber;
-  final String? expectedPin;
 
   const DriverWrongPinScreen({
     super.key,
     this.initialWrongPin = '',
     this.passengerName = 'Passenger',
-    this.rideId = 'RIDE-8902',
+    required this.rideId,
     this.bookingId,
     this.seatNumber,
-    this.expectedPin = '8492',
   });
 
   @override
@@ -76,7 +74,6 @@ class _DriverWrongPinScreenState extends State<DriverWrongPinScreen> {
         pin: pin,
         seatNumber: widget.seatNumber,
         passengerName: widget.passengerName,
-        expectedPin: widget.expectedPin,
       );
 
       if (!mounted) return;
@@ -115,11 +112,12 @@ class _DriverWrongPinScreenState extends State<DriverWrongPinScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context, false),
         ),
         title: const Text(
-          'Wrong pin',
+          'Wrong PIN',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
         ),
         centerTitle: true,
@@ -240,7 +238,7 @@ class _DriverWrongPinScreenState extends State<DriverWrongPinScreen> {
 
                   // Verify Pin Button matching 90.png
                   CustomButton(
-                    text: 'Verify pin',
+                    text: 'Verify PIN',
                     isLoading: _isLoading,
                     onPressed: _handleReVerify,
                   ),

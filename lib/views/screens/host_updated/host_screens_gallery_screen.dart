@@ -414,6 +414,7 @@ class _HostScreensGalleryScreenState extends State<HostScreensGalleryScreen> {
           ),
         ),
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E1E24), size: 20),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -498,7 +499,7 @@ class _HostScreensGalleryScreenState extends State<HostScreensGalleryScreen> {
         border: Border.all(color: const Color(0xFFEBEBF2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -513,7 +514,7 @@ class _HostScreensGalleryScreenState extends State<HostScreensGalleryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5E42C2).withOpacity(0.08),
+                  color: const Color(0xFF5E42C2).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -529,7 +530,7 @@ class _HostScreensGalleryScreenState extends State<HostScreensGalleryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (item['statusColor'] as Color).withOpacity(0.1),
+                  color: (item['statusColor'] as Color).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

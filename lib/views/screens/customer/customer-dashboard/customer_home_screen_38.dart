@@ -15,6 +15,7 @@ import '../customer-stay/stay_ride_search_screen_41.dart';
 import '../customer-common/saved_favorites_screen_47.dart';
 import '../customer-common/customer_bookings_history_screen_43.dart';
 import '../customer-common/customer_profile_screen_44.dart';
+import '../customer-common/customer_messages_screen.dart';
 import '../customer-common/notifications_screen_52.dart';
 import '../customer-stay/heritage_places_screen.dart';
 import '../customer-stay/heritage_detail_screen.dart';
@@ -418,7 +419,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               Expanded(
                 child: _buildHeroCard(
                   title: 'Event Halls',
-                  subtitle: 'Find the perfect venue form your special occupation',
+                  subtitle: 'Find the perfect venue for your special occasion',
                   iconAsset: 'assets/images/hero_event_3d_icon.png',
                   fallbackIcon: Icons.celebration_rounded,
                   onTap: () {
@@ -437,7 +438,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               Expanded(
                 child: _buildHeroCard(
                   title: 'Ride',
-                  subtitle: 'Find a Convenient rides to your detitanations',
+                  subtitle: 'Find convenient rides to your destinations',
                   iconAsset: 'assets/images/hero_ride_3d_icon.png',
                   fallbackIcon: Icons.directions_car_rounded,
                   onTap: () {
@@ -1455,15 +1456,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       child: BottomNavigationBar(
         currentIndex: _currentNavIndex,
         onTap: (index) {
-          setState(() => _currentNavIndex = index);
-          if (index == 1) {
+          // Other tabs open their own screen, so the dashboard keeps Home
+          // highlighted (otherwise the pushed tab stays highlighted on return).
+          if (index == 0) {
+            setState(() => _currentNavIndex = 0);
+          } else if (index == 1) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedFavoritesScreen()));
           } else if (index == 2) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerBookingsHistoryScreen()));
           } else if (index == 3) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No new messages.'), duration: Duration(seconds: 1)),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerMessagesScreen()));
           } else if (index == 4) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerProfileScreen()));
           }

@@ -19,9 +19,9 @@ class DriverRatingsReviewsScreen extends StatefulWidget {
 
 class _DriverRatingsReviewsScreenState extends State<DriverRatingsReviewsScreen> {
   bool _isLoading = true;
-  String _ratingFormatted = '4.8';
-  int _totalReviews = 126;
-  String _ratingSubtitle = 'Based on 126 reviews';
+  String _ratingFormatted = '--';
+  int _totalReviews = 0;
+  String _ratingSubtitle = '';
   List<Map<String, dynamic>> _starsBreakdownList = [];
   Map<String, dynamic>? _recentReview;
 
@@ -38,9 +38,9 @@ class _DriverRatingsReviewsScreenState extends State<DriverRatingsReviewsScreen>
       setState(() {
         _isLoading = false;
         if (res['success'] == true) {
-          _ratingFormatted = res['ratingFormatted']?.toString() ?? res['rating']?.toString() ?? '4.8';
-          _totalReviews = (res['totalReviews'] as num?)?.toInt() ?? 126;
-          _ratingSubtitle = res['ratingSubtitle']?.toString() ?? 'Based on $_totalReviews reviews';
+          _ratingFormatted = res['ratingFormatted']?.toString() ?? res['rating']?.toString() ?? '--';
+          _totalReviews = (res['totalReviews'] as num?)?.toInt() ?? 0;
+          _ratingSubtitle = res['ratingSubtitle']?.toString() ?? (_totalReviews > 0 ? 'Based on $_totalReviews reviews' : 'No reviews yet');
 
           if (res['starsBreakdown'] is Map) {
             final breakdown = res['starsBreakdown'] as Map;
@@ -164,7 +164,7 @@ class _DriverRatingsReviewsScreenState extends State<DriverRatingsReviewsScreen>
                               final rev = reviewsList[idx];
                               final revName = rev['customerName'] ?? rev['name'] ?? 'Customer';
                               final revDate = rev['date'] ?? '';
-                              final revStars = (rev['rating'] ?? rev['stars'] as num?)?.toInt() ?? 5;
+                              final revStars = (rev['rating'] ?? rev['stars'] as num?)?.toInt() ?? 0;
                               final revComment = rev['comment'] ?? '';
 
                               return Column(
@@ -243,13 +243,14 @@ class _DriverRatingsReviewsScreenState extends State<DriverRatingsReviewsScreen>
     final hasRecentReview = _recentReview != null;
     final recentName = _recentReview?['customerName']?.toString() ?? 'Customer';
     final recentDate = _recentReview?['date']?.toString() ?? '';
-    final recentStars = (_recentReview?['rating'] as num?)?.toInt() ?? 5;
+    final recentStars = (_recentReview?['rating'] as num?)?.toInt() ?? 0;
     final recentComment = _recentReview?['comment']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

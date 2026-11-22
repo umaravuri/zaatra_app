@@ -268,6 +268,7 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

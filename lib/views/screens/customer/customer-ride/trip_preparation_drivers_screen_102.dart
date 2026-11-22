@@ -50,25 +50,42 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
     _fetchRides();
   }
 
+  /// Incremented per request so a slow earlier response cannot overwrite a newer one.
+  int _fetchSeq = 0;
+
   Future<void> _fetchRides() async {
     setState(() => _isLoading = true);
+    final seq = ++_fetchSeq;
     final count = int.tryParse(widget.passengers.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
     final filterBy = _filterDoorToDoor
         ? 'door_to_door'
         : (_filterSharedRide ? 'shared_ride' : null);
 
-    final res = await RideService.searchRides(
-      pickupLocation: widget.pickup,
-      destination: widget.destination,
-      date: widget.date,
-      passengers: count,
-      filterBy: filterBy,
-      rideType: filterBy,
-      sortBy: _selectedSort == 'price' ? 'price_asc' : 'departure_asc',
-      acceptDoorToDoor: _filterDoorToDoor ? true : (_filterSharedRide ? false : null),
-    );
+    Map<String, dynamic> res;
+    try {
+      res = await RideService.searchRides(
+        pickupLocation: widget.pickup,
+        destination: widget.destination,
+        date: widget.date,
+        passengers: count,
+        filterBy: filterBy,
+        rideType: filterBy,
+        sortBy: _selectedSort == 'price' ? 'price_asc' : 'departure_asc',
+        acceptDoorToDoor: _filterDoorToDoor ? true : (_filterSharedRide ? false : null),
+      );
+    } catch (_) {
+      res = {'success': false, 'message': 'Could not load rides. Please check your connection and try again.'};
+    }
 
-    if (mounted) {
+    if (mounted && seq == _fetchSeq) {
+      if (res['success'] == false && res['data'] is! List && res['rides'] is! List) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Could not load rides. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
       final rawList = (res['data'] is List)
           ? res['data'] as List
           : ((res['rides'] is List) ? res['rides'] as List : []);
@@ -130,7 +147,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
     if (avatar.startsWith('http://') || avatar.startsWith('https://')) return NetworkImage(avatar);
     if (avatar.startsWith('/')) {
       final base = ApiService.serverBaseUrl;
-      return NetworkImage('$base$avatar');
+      return NetworkImage('avatar');
     }
     return null;
   }
@@ -141,6 +158,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -217,7 +235,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${widget.date}${widget.time.isNotEmpty ? " - ${widget.time}" : ""}'.trim(),
+                                '${widget.time.isNotEmpty ? " - ${widget.time}" : ""}'.trim(),
                                 style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                               ),
                             ],
@@ -383,7 +401,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                 summaryParts.add('${driver.reviewCount} trips');
                               }
                               if (driver.vehicleNumber.isNotEmpty) summaryParts.add(driver.vehicleNumber);
-                              final vehicleSummaryText = summaryParts.join(' , ');
+                              final vehicleSummaryText = summaryParts.join(', ');
 
                               final originPoint = driver.pickupPoint.isNotEmpty ? driver.pickupPoint : (widget.pickup.isNotEmpty ? widget.pickup : 'Pickup');
                               final destPoint = driver.destinationPoint.isNotEmpty ? driver.destinationPoint : (widget.destination.isNotEmpty ? widget.destination : 'Destination');
@@ -493,7 +511,9 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                         Text(
                                                           driver.ratingBadge.isNotEmpty
                                                               ? driver.ratingBadge.replaceAll('★ ', '')
-                                                              : '${driver.rating > 0 ? driver.rating : 4.8} (${driver.ratingCount > 0 ? driver.ratingCount : 126})',
+                                                              : (driver.rating > 0
+                                                                  ? '${driver.ratingCount > 0 ? ' (${driver.ratingCount})' : ''}'
+                                                                  : 'New'),
                                                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB78103)),
                                                         ),
                                                       ],

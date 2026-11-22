@@ -66,11 +66,20 @@ class _RideBookingSuccessScreenState extends State<RideBookingSuccessScreen> {
     
     final pin = m?.boardingPin.isNotEmpty == true
         ? m!.boardingPin
-        : (active.boardingPin.isNotEmpty ? active.boardingPin : '5478');
-    
+        : active.boardingPin;
+    // Never show an invented PIN: if none has been issued yet, say so.
+    final pinLabel = pin.isNotEmpty ? pin : 'Pending';
+
+    final vehicleModel = active.driver.carModel.isNotEmpty
+        ? active.driver.carModel
+        : (m?.vehicle ?? '');
+    final vehiclePlate = active.driver.vehicleNumber.isNotEmpty
+        ? active.driver.vehicleNumber
+        : (m?.vehicleNumberPlate ?? '');
+    final carPlateJoined = [vehicleModel, vehiclePlate].where((s) => s.isNotEmpty).join(' • ');
     final carPlate = m?.carAndPlate.isNotEmpty == true
         ? m!.carAndPlate
-        : '${active.driver.carModel.isNotEmpty ? active.driver.carModel : (m?.vehicle.isNotEmpty == true ? m!.vehicle : "Sedan")} • ${active.driver.vehicleNumber.isNotEmpty ? active.driver.vehicleNumber : (m?.vehicleNumberPlate.isNotEmpty == true ? m!.vehicleNumberPlate : "AP 07GR4567")}';
+        : (carPlateJoined.isNotEmpty ? carPlateJoined : 'Details pending');
     
     final payAmount = m?.payToDriver.isNotEmpty == true
         ? m!.payToDriver
@@ -191,7 +200,7 @@ class _RideBookingSuccessScreenState extends State<RideBookingSuccessScreen> {
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          pin,
+                                          pinLabel,
                                           style: const TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.bold,

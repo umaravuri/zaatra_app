@@ -2,23 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/navigation/app_navigator.dart';
+import '../../../../models/customer_booking_model.dart';
 import '../../../../models/hotel_model.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
 import 'live_ride_tracking_screen_106.dart';
 import '../customer-stay/select_room_screen_54.dart';
 import 'customer_rate_ride_sheet.dart';
+import 'ride_chat_screen.dart';
 
 class RideConfirmedDetailScreen112 extends StatefulWidget {
   final String? bookingId;
   final RideBookingSession? session;
   final Map<String, dynamic>? bookingData;
 
+  /// Lifecycle state of the booking. Drives which actions/sections are shown.
+  /// When omitted it is derived from `bookingData['status']`; a screen opened
+  /// right after booking (with a `session`) is treated as upcoming.
+  final BookingState? state;
+
   const RideConfirmedDetailScreen112({
     super.key,
     this.bookingId,
     this.session,
     this.bookingData,
+    this.state,
   });
 
   @override
@@ -29,6 +37,8 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
   bool _agreedToTerms = true;
   bool _isLoading = false;
   bool _isCancelling = false;
+  bool _hasRated = false;
+  late BookingState _state;
 
   // Dynamic state variables initialized with smart runtime defaults
   String _displayDate = '';
@@ -36,21 +46,21 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
   String _checkInTime = '';
   String _checkOutDate = '';
   String _checkOutTime = '';
-  String _seatConfirmed = 'A 1';
-  String _boardingPin = '5478';
+  String _seatConfirmed = '';
+  String _boardingPin = '';
 
   String _driverName = 'Driver';
   String _driverDetails = '';
   String _driverCarNumber = '';
   String _destinationAddress = '';
-  String _driverRating = '4.9';
+  String _driverRating = '';
   String _driverPhone = '';
   String _driverAvatar = '';
 
   List<Map<String, dynamic>> _timelineStops = [];
 
-  String _routeNote1 = 'note : 1 seat confirmed';
-  String _routeNote2 = 'fuel share verified';
+  String _routeNote1 = '';
+  String _routeNote2 = '';
 
   String _bookingId = '';
   String _passengerName = '';
@@ -67,28 +77,68 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
   @override
   void initState() {
     super.initState();
+    _state = widget.state ??
+        (widget.session != null
+            ? BookingState.upcoming
+            : classifyBookingStatus((widget.bookingData?['status'] ?? '').toString()));
     _initDefaultDates();
     _hydrateInitialData();
     _fetchDynamicConfirmation();
   }
 
-  void _initDefaultDates() {
-    final now = DateTime.now();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    final todayFormatted = '${now.day} ${months[now.month - 1]}';
-    final fullDateFormatted = '${now.day} ${months[now.month - 1]} . ${now.year}';
-    final dayOfWeek = weekdays[now.weekday - 1];
+  // ---- status-driven visibility -------------------------------------------
+  bool get _isUpcoming => _state == BookingState.upcoming;
+  bool get _isPending => _state == BookingState.pending;
+  bool get _isActive => _state == BookingState.active;
+  bool get _isCompleted => _state == BookingState.completed;
+  bool get _isCancelled => _state == BookingState.cancelled;
 
-    _displayDate = '$dayOfWeek ${now.day} ${months[now.month - 1].toLowerCase()} , 10:30 am';
-    _checkInDate = fullDateFormatted;
-    _checkInTime = '10 : 30 AM';
-    _checkOutDate = fullDateFormatted;
-    _checkOutTime = '01 : 00 PM';
-    _bookingRequestDate = todayFormatted;
-    _rideAcceptDate = todayFormatted;
-    _rideAcceptedDate = todayFormatted;
+  /// Cancel is only valid before the ride starts, and only if the backend allows it.
+  bool get _canCancel =>
+      (_isUpcoming || _isPending) && (_tripPassDetails?.canCancelBooking ?? true);
+  bool get _showPin => (_isUpcoming || _isActive) && _boardingPin.isNotEmpty;
+  bool get _showDriverContact => _isUpcoming || _isActive;
+  bool get _canTrack => _isUpcoming || _isActive;
+  bool get _canRate => _isCompleted && !_hasRated;
+  bool get _showStopovers => _isUpcoming || _isActive;
+
+  String get _stateLabel {
+    switch (_state) {
+      case BookingState.upcoming:
+        return 'Upcoming';
+      case BookingState.pending:
+        return 'Pending';
+      case BookingState.active:
+        return 'Ride in progress';
+      case BookingState.completed:
+        return 'Completed';
+      case BookingState.cancelled:
+        return 'Cancelled';
+      case BookingState.unknown:
+        return '';
+    }
+  }
+
+  Color get _stateColor {
+    switch (_state) {
+      case BookingState.upcoming:
+        return const Color(0xFF16A34A);
+      case BookingState.pending:
+        return const Color(0xFFF57C00);
+      case BookingState.active:
+        return const Color(0xFF5945C7);
+      case BookingState.completed:
+        return const Color(0xFF64748B);
+      case BookingState.cancelled:
+        return const Color(0xFFD32F2F);
+      case BookingState.unknown:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  void _initDefaultDates() {
+    // Intentionally empty: never show invented dates or times. Values come from
+    // the booking payload, the session or the pass API.
   }
 
   String _formatFriendlyDate(String rawDate, [String? rawTime]) {
@@ -157,8 +207,8 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       return s.copyWith(
         bookingId: s.bookingId.isNotEmpty ? s.bookingId : effectiveBookingId,
         boardingPin: s.boardingPin.isNotEmpty ? s.boardingPin : _boardingPin,
-        pickup: s.pickup.isNotEmpty ? s.pickup : (pickupName.isNotEmpty ? pickupName : 'Miyapur, Telangana'),
-        destination: s.destination.isNotEmpty ? s.destination : (destName.isNotEmpty ? destName : 'L. B. Nagar, Hyderabad'),
+        pickup: s.pickup.isNotEmpty ? s.pickup : pickupName,
+        destination: s.destination.isNotEmpty ? s.destination : destName,
         date: s.date.isNotEmpty ? s.date : _checkInDate,
         time: s.time.isNotEmpty ? s.time : _checkInTime,
         driver: s.driver.name.isNotEmpty
@@ -166,7 +216,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
             : RideDriver(
                 name: _driverName,
                 phone: _driverPhone,
-                rating: double.tryParse(_driverRating) ?? 4.8,
+                rating: double.tryParse(_driverRating) ?? 0.0,
                 carModel: _driverDetails,
                 vehicleNumber: _driverDetails,
                 avatarImage: _driverAvatar,
@@ -178,14 +228,14 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
     return RideBookingSession(
       bookingId: effectiveBookingId,
       boardingPin: _boardingPin,
-      pickup: pickupName.isNotEmpty ? pickupName : 'Miyapur, Telangana',
-      destination: destName.isNotEmpty ? destName : 'L. B. Nagar, Hyderabad',
+      pickup: pickupName,
+      destination: destName,
       date: _checkInDate,
       time: _checkInTime,
       driver: RideDriver(
         name: _driverName,
         phone: _driverPhone,
-        rating: double.tryParse(_driverRating) ?? 4.8,
+        rating: double.tryParse(_driverRating) ?? 0.0,
         carModel: _driverDetails,
         vehicleNumber: _driverDetails,
         avatarImage: _driverAvatar,
@@ -195,6 +245,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
   }
 
   void _openRouteMap() {
+    if (!_canTrack) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -214,12 +265,12 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       if (s.bookingId.isNotEmpty) {
         _bookingId = s.bookingId.startsWith('#') ? s.bookingId : '#${s.bookingId}';
       } else {
-        _bookingId = '#BK-RIDE-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+        _bookingId = '';
       }
 
       // 2. Schedule & Dates
       if (s.date.isNotEmpty) {
-        final time = s.time.isNotEmpty ? s.time : '10:30 am';
+        final time = s.time;
         _displayDate = '${s.date} , $time';
         _checkInDate = s.date;
         _checkInTime = time;
@@ -228,17 +279,12 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
             : s.date;
         _checkOutTime = s.rideDetailData?.arrivalTime.isNotEmpty == true
             ? s.rideDetailData!.arrivalTime
-            : '01:00 PM';
+            : '';
       }
 
       // 3. Boarding PIN
       if (s.boardingPin.isNotEmpty) {
         _boardingPin = s.boardingPin;
-      } else if (s.bookingId.isNotEmpty) {
-        final digits = s.bookingId.replaceAll(RegExp(r'[^0-9]'), '');
-        if (digits.length >= 4) {
-          _boardingPin = digits.substring(digits.length - 4);
-        }
       }
 
       // 4. Seats
@@ -270,7 +316,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       }
       if (plate.isNotEmpty) detailsParts.add(plate);
 
-      _driverDetails = detailsParts.isNotEmpty ? detailsParts.join(' , ') : 'Verified Driver';
+      _driverDetails = detailsParts.join(', ');
 
       if (s.driver.rating > 0) {
         _driverRating = s.driver.rating.toStringAsFixed(1);
@@ -297,7 +343,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
           final stop = e.value;
           final title = stop.location.isNotEmpty ? stop.location : (stop.title.isNotEmpty ? stop.title : 'Stop ${e.key + 1}');
           return {
-            'time': stop.time.isNotEmpty ? stop.time : '10:00 AM',
+            'time': stop.time,
             'title': title,
             'isFirst': e.key == 0,
             'isLast': e.key == rTimeline.length - 1,
@@ -306,8 +352,8 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       } else if (s.pickup.isNotEmpty || s.destination.isNotEmpty) {
         final pickup = s.pickup.isNotEmpty ? s.pickup : 'Origin';
         final drop = s.destination.isNotEmpty ? s.destination : 'Destination';
-        final depTime = s.time.isNotEmpty ? s.time : '10:30 AM';
-        final arrTime = s.rideDetailData?.arrivalTime.isNotEmpty == true ? s.rideDetailData!.arrivalTime : '01:00 PM';
+        final depTime = s.time;
+        final arrTime = s.rideDetailData?.arrivalTime.isNotEmpty == true ? s.rideDetailData!.arrivalTime : '';
         _timelineStops = [
           {'time': depTime, 'title': pickup, 'isFirst': true, 'isLast': false},
           {'time': arrTime, 'title': drop, 'isFirst': false, 'isLast': true},
@@ -399,7 +445,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       _timelineStops = pass.routeStops.asMap().entries.map((e) {
         final stop = e.value;
         return {
-          'time': stop.time.isNotEmpty ? stop.time : '${9 + e.key} : 00',
+          'time': stop.time,
           'title': stop.location,
           'isFirst': stop.isStart || e.key == 0,
           'isLast': stop.isEnd || e.key == pass.routeStops.length - 1,
@@ -428,13 +474,13 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
     String to = session?.destination ?? '';
     if (from.isEmpty && _timelineStops.isNotEmpty) from = _timelineStops.first['title']?.toString() ?? '';
     if (to.isEmpty && _timelineStops.isNotEmpty) to = _timelineStops.last['title']?.toString() ?? '';
-    if (from.isEmpty) from = 'Hyderabad';
-    if (to.isEmpty) to = 'Vijayawada';
+    if (!_showStopovers || from.isEmpty || to.isEmpty) return;
 
     // Normalize from/to strings (take city name before comma)
     from = from.split(',').first.trim();
     to = to.split(',').first.trim();
 
+    if (!mounted) return;
     setState(() => _isLoadingProperties = true);
     final res = await RideService.getPropertiesAlongRoute(from: from, to: to);
     if (mounted) {
@@ -510,11 +556,11 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       if (plate.isNotEmpty) parts.add(plate.toString());
 
       if (parts.isNotEmpty) {
-        _driverDetails = parts.join(' , ');
+        _driverDetails = parts.join(', ');
       }
 
       if (driver['rating'] != null) {
-        final r = double.tryParse(driver['rating'].toString()) ?? 4.9;
+        final r = double.tryParse(driver['rating'].toString()) ?? 0.0;
         _driverRating = r.toStringAsFixed(1);
       }
       if (driver['phone'] != null || driver['phoneNumber'] != null) {
@@ -549,7 +595,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       _timelineStops = list.asMap().entries.map((e) {
         final item = e.value is Map<String, dynamic> ? e.value as Map<String, dynamic> : <String, dynamic>{};
         return {
-          'time': item['time']?.toString() ?? '${9 + e.key} : 00',
+          'time': item['time']?.toString() ?? '',
           'title': item['title']?.toString() ?? item['location']?.toString() ?? 'Stop ${e.key + 1}',
           'isFirst': e.key == 0,
           'isLast': e.key == list.length - 1,
@@ -569,7 +615,13 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
 
   Future<void> _makePhoneCall(String phoneNumber) async {
     final clean = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('tel:${clean.isNotEmpty ? clean : '+919876543210'}');
+    if (clean.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Driver phone number is not available yet')),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$clean');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
@@ -589,35 +641,24 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
     }
   }
 
-  Future<void> _sendSms(String phoneNumber) async {
-    final clean = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('sms:${clean.isNotEmpty ? clean : '+919876543210'}');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Messaging $phoneNumber...')),
-          );
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch messaging app for $phoneNumber')),
-        );
-      }
-    }
+  void _openChat() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideChatScreen(
+          bookingId: _getEffectiveBookingId(),
+          driverName: _driverName.isNotEmpty ? _driverName : 'Driver',
+          vehicleInfo: _driverDetails,
+        ),
+      ),
+    );
   }
 
   void _showCancellationPolicySheet() {
     final policyDesc = _tripPassDetails?.cancellationPolicyDescription.isNotEmpty == true
         ? _tripPassDetails!.cancellationPolicyDescription
-        : '• Free cancellation up to 2 hours before scheduled departure.\n'
-            '• 50% refund for cancellations made within 2 hours of departure.\n'
-            '• No refund once the ride has commenced or after scheduled departure time.\n'
-            '• Refunds are credited back to the original payment method within 3-5 business days.';
+        : 'The cancellation policy is not available right now. '
+            'You will see any refund amount before you confirm a cancellation.';
 
     showModalBottomSheet(
       context: context,
@@ -686,7 +727,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       } catch (_) {}
     }
 
-    if (!mounted) return;
+    if (!mounted || !_canCancel) return;
 
     showDialog(
       context: context,
@@ -769,23 +810,22 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
     final effectiveId = _getEffectiveBookingId();
 
     if (effectiveId.isEmpty) {
-      setState(() => _isCancelling = false);
       if (mounted) {
+        setState(() => _isCancelling = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Booking cancelled successfully'),
-            backgroundColor: Colors.green,
+            content: Text('Could not cancel: booking reference is missing'),
+            backgroundColor: Colors.red,
           ),
         );
-        Navigator.pop(context);
       }
       return;
     }
 
     try {
       final res = await RideService.cancelBooking(effectiveId);
-      setState(() => _isCancelling = false);
       if (mounted) {
+        setState(() => _isCancelling = false);
         if (res['success'] == true) {
           final refundAmt = res['refundAmount'] ?? res['refund'] ?? '';
           final refundMsg = (refundAmt != null && refundAmt.toString().isNotEmpty && refundAmt.toString() != '0')
@@ -812,7 +852,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Navigator.pop(context);
+                    Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5945C7),
@@ -833,8 +873,8 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
         }
       }
     } catch (e) {
-      setState(() => _isCancelling = false);
       if (mounted) {
+        setState(() => _isCancelling = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cancellation error: $e'),
@@ -870,15 +910,38 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Date and Time Header
-                      Text(
-                        _formatFriendlyDate(_displayDate),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
+                      // Date and Time Header + status chip
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _formatFriendlyDate(_displayDate),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (_stateLabel.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _stateColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                _stateLabel,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _stateColor),
+                              ),
+                            ),
+                        ],
                       ),
+
+                      if (_isCancelled || _isCompleted) ...[
+                        const SizedBox(height: 10),
+                        _buildOutcomeBanner(),
+                      ],
 
                       const SizedBox(height: 14),
 
@@ -887,10 +950,11 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
 
                       const SizedBox(height: 14),
 
-                      // 3. Boarding PIN Banner
-                      _buildBoardingPinBanner(),
-
-                      const SizedBox(height: 14),
+                      // 3. Boarding PIN Banner (upcoming / active only, real PIN only)
+                      if (_showPin) ...[
+                        _buildBoardingPinBanner(),
+                        const SizedBox(height: 14),
+                      ],
 
                       // 4. Driver Info Card
                       _buildDriverCard(),
@@ -912,30 +976,27 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
 
                       const SizedBox(height: 24),
 
-                      // 8. Stays & Stopovers Along Route (Scenario 1)
-                      _buildRoutePropertiesSection(),
+                      // 8. Stays & Stopovers Along Route (upcoming / active only)
+                      if (_showStopovers) ...[
+                        _buildRoutePropertiesSection(),
+                        const SizedBox(height: 24),
+                      ],
 
-                      const SizedBox(height: 24),
+                      // Rate Your Ride: completed rides only, once
+                      if (_canRate) ...[
+                        _buildRateRideButton(),
+                        const SizedBox(height: 14),
+                      ],
 
-                      // Rate Your Ride Button
-                      _buildRateRideButton(),
-
-                      const SizedBox(height: 14),
-
-                      // 9. Cancellation Policy Button
-                      _buildCancellationPolicyButton(),
-
-                      const SizedBox(height: 14),
-
-                      // 8. Cancel Booking Button
-                      _buildCancelBookingButton(),
-
-                      const SizedBox(height: 16),
-
-                      // 9. Terms & Privacy Agreement Checkbox
-                      _buildAgreementCheckbox(),
-
-                      const SizedBox(height: 24),
+                      // Cancellation policy + Cancel: only before the ride starts
+                      if (_canCancel) ...[
+                        _buildCancellationPolicyButton(),
+                        const SizedBox(height: 14),
+                        _buildCancelBookingButton(),
+                        const SizedBox(height: 16),
+                        _buildAgreementCheckbox(),
+                        const SizedBox(height: 24),
+                      ],
                     ],
                   ),
                 ),
@@ -1012,7 +1073,8 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
           ),
         ),
 
-        // Floating "Show Route Map" badge on top map
+        // Floating "Show Route Map" badge on top map (upcoming / active only)
+        if (_canTrack)
         Positioned(
           bottom: 16,
           right: 16,
@@ -1180,7 +1242,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                 ),
               ),
               Text(
-                _seatConfirmed,
+                _seatConfirmed.isNotEmpty ? _seatConfirmed : '—',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1191,6 +1253,24 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
           ),
         ],
       ),
+    );
+  }
+
+  // Completed / Cancelled summary (no invented amounts)
+  Widget _buildOutcomeBanner() {
+    final pay = _tripPassDetails?.paymentStatus ?? '';
+    final text = _isCancelled
+        ? 'This booking was cancelled.${pay.isNotEmpty ? ' Payment status: $pay.' : ''} Any refund is credited to your original payment method as per the cancellation policy.'
+        : 'This ride is complete.${pay.isNotEmpty ? ' Payment status: $pay.' : ''}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _stateColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _stateColor.withValues(alpha: 0.25)),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 12.5, color: _stateColor, height: 1.4)),
     );
   }
 
@@ -1308,7 +1388,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _driverDetails.isNotEmpty ? _driverDetails : 'Vehicle Details Available',
+                      _driverDetails.isNotEmpty ? _driverDetails : 'Vehicle details unavailable',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF64748B),
@@ -1317,6 +1397,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                   ],
                 ),
               ),
+              if (_driverRating.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1342,14 +1423,15 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
             ],
           ),
 
-          const SizedBox(height: 16),
+          if (_showDriverContact) const SizedBox(height: 16),
 
-          // Call & Message Buttons
+          // Call & Message Buttons (upcoming / active only)
+          if (_showDriverContact)
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _makePhoneCall(_driverPhone),
+                  onPressed: _driverPhone.isEmpty ? null : () => _makePhoneCall(_driverPhone),
                   icon: const Icon(Icons.call_rounded, size: 16, color: Color(0xFF5945C7)),
                   label: const Text(
                     'Call',
@@ -1370,7 +1452,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _sendSms(_driverPhone),
+                  onPressed: _getEffectiveBookingId().isEmpty ? null : _openChat,
                   icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Colors.white),
                   label: const Text(
                     'Message',
@@ -1411,6 +1493,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                 color: AppColors.textPrimary,
               ),
             ),
+            if (_canTrack)
             InkWell(
               onTap: _openRouteMap,
               borderRadius: BorderRadius.circular(8),
@@ -1439,9 +1522,10 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
         const SizedBox(height: 16),
 
         if (_timelineStops.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text('Route details loading...', style: TextStyle(color: Color(0xFF64748B))),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(_isLoading ? 'Route details loading...' : 'Route details unavailable',
+                style: const TextStyle(color: Color(0xFF64748B))),
           )
         else
           for (final stop in _timelineStops)
@@ -1466,6 +1550,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
 
         const SizedBox(height: 12),
 
+        if (_routeNote1.isNotEmpty || _routeNote2.isNotEmpty)
         Center(
           child: Column(
             children: [
@@ -1588,23 +1673,29 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
           ),
           child: Column(
             children: [
-              _buildBookingDetailRow('Booking ID', _bookingId.isNotEmpty ? _bookingId : '#BK-RIDE-CONFIRMED', valueBold: true),
-              const SizedBox(height: 12),
-              _buildBookingDetailRow(
-                _passengerName.isNotEmpty ? _passengerName : 'Passenger Booking',
-                _passengerPhone.isNotEmpty ? _passengerPhone : '+91 000-000-0000',
-                valueColor: const Color(0xFFE53935),
-                valueBold: true,
-              ),
-              const SizedBox(height: 12),
-              _buildBookingDetailRow('Booking request', _bookingRequestDate, valueBold: true),
-              const SizedBox(height: 12),
-              _buildBookingDetailRow(
-                'Ride accepted',
-                _rideAcceptedDate.isNotEmpty ? _rideAcceptedDate : _rideAcceptDate,
-                valueColor: const Color(0xFF16A34A),
-                valueBold: true,
-              ),
+              _buildBookingDetailRow('Booking ID', _bookingId.isNotEmpty ? _bookingId : '—', valueBold: true),
+              if (_passengerName.isNotEmpty || _passengerPhone.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildBookingDetailRow(
+                  _passengerName.isNotEmpty ? _passengerName : 'Passenger',
+                  _passengerPhone.isNotEmpty ? _passengerPhone : '—',
+                  valueColor: const Color(0xFFE53935),
+                  valueBold: true,
+                ),
+              ],
+              if (_bookingRequestDate.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildBookingDetailRow('Booking request', _bookingRequestDate, valueBold: true),
+              ],
+              if ((_rideAcceptedDate.isNotEmpty ? _rideAcceptedDate : _rideAcceptDate).isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildBookingDetailRow(
+                  'Ride accepted',
+                  _rideAcceptedDate.isNotEmpty ? _rideAcceptedDate : _rideAcceptDate,
+                  valueColor: const Color(0xFF16A34A),
+                  valueBold: true,
+                ),
+              ],
             ],
           ),
         ),
@@ -2085,16 +2176,20 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed: () {
-          CustomerRateRideSheet.show(
+        onPressed: () async {
+          final raw = widget.bookingData ?? const <String, dynamic>{};
+          final rated = await CustomerRateRideSheet.show(
             context,
-            bookingId: _bookingId,
+            bookingData: raw,
+            bookingId: _getEffectiveBookingId(),
+            rideId: (raw['rideId'] ?? (raw['ride'] is Map ? (raw['ride'] as Map)['id'] : null))?.toString(),
             driverName: _driverName.isNotEmpty ? _driverName : 'Driver',
             vehicleInfo: _driverCarNumber.isNotEmpty ? _driverCarNumber : 'Ride Vehicle',
-            origin: _checkInTime.isNotEmpty ? _checkInTime : 'Origin',
+            origin: _timelineStops.isNotEmpty ? (_timelineStops.first['title']?.toString() ?? 'Origin') : 'Origin',
             destination: _destinationAddress.isNotEmpty ? _destinationAddress.split(',').first : 'Destination',
-            intermediateStop: 'En-route',
+            intermediateStop: '',
           );
+          if (rated == true && mounted) setState(() => _hasRated = true);
         },
         icon: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
         label: const Text(
@@ -2182,7 +2277,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
                   text: 'privacy policy',
                   style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w500),
                 ),
-                TextSpan(text: ' , '),
+                TextSpan(text: ', '),
                 TextSpan(
                   text: 'terms and conditions',
                   style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w500),

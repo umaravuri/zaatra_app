@@ -1404,7 +1404,6 @@ class PassengerBoardingVerifyDetails {
   final String dropoffLocation;
   final String seatNumber;
   final int pinLength;
-  final String expectedPin;
   final bool isBoarded;
   final List<SeatGridItem> seatGrid;
 
@@ -1416,7 +1415,6 @@ class PassengerBoardingVerifyDetails {
     this.dropoffLocation = '',
     this.seatNumber = 'S-1',
     this.pinLength = 4,
-    this.expectedPin = '',
     this.isBoarded = false,
     this.seatGrid = const [],
   });
@@ -1464,13 +1462,6 @@ class PassengerBoardingVerifyDetails {
     final pBookingId = passObj['bookingId']?.toString() ??
         passObj['_id']?.toString() ??
         root['bookingId']?.toString() ??
-        '';
-
-    final pPin = passObj['boardingPin']?.toString() ??
-        passObj['pin']?.toString() ??
-        passObj['expectedPin']?.toString() ??
-        root['expectedPin']?.toString() ??
-        root['boardingPin']?.toString() ??
         '';
 
     final pBoarded = passObj['isBoarded'] == true || root['isBoarded'] == true;
@@ -1530,7 +1521,6 @@ class PassengerBoardingVerifyDetails {
       dropoffLocation: pTo,
       seatNumber: pSeat,
       pinLength: root['pinLength'] is int ? root['pinLength'] as int : 4,
-      expectedPin: pPin,
       isBoarded: pBoarded,
       seatGrid: gridList,
     );
@@ -2010,11 +2000,11 @@ class TripPassDetails {
     this.ticket = const TripPassTicket(),
     this.boardingPin = '',
     this.qrPassToken = '',
-    this.driverName = 'Driver',
+    this.driverName = '',
     this.driverPhone = '',
     this.driverAvatar = '',
     this.vehicleSummary = '',
-    this.driverRating = 4.9,
+    this.driverRating = 0.0,
     this.driverCompletedTrips = 0,
     this.callAction = '',
     this.messageAction = '',
@@ -2100,11 +2090,11 @@ class TripPassDetails {
       ticket: TripPassTicket.fromJson(ticketJson),
       boardingPin: pinVal,
       qrPassToken: trip['qrPassToken']?.toString() ?? '',
-      driverName: dProfile['driverName']?.toString() ?? dProfile['name']?.toString() ?? 'Driver',
+      driverName: dProfile['driverName']?.toString() ?? dProfile['name']?.toString() ?? '',
       driverPhone: dProfile['driverPhone']?.toString() ?? dProfile['phone']?.toString() ?? '',
       driverAvatar: dProfile['driverAvatar']?.toString() ?? dProfile['avatar']?.toString() ?? '',
       vehicleSummary: dProfile['subtitle']?.toString() ?? (dProfile['vehicle'] != null ? '${dProfile['vehicle']} • ${dProfile['vehicleNumberPlate'] ?? ""}' : ''),
-      driverRating: getNum(dProfile['rating'])?.toDouble() ?? 4.9,
+      driverRating: getNum(dProfile['rating'])?.toDouble() ?? 0.0,
       driverCompletedTrips: getNum(dProfile['completedTrips'])?.toInt() ?? 0,
       callAction: callObj['action']?.toString() ?? '',
       messageAction: msgObj['action']?.toString() ?? '',
@@ -2459,4 +2449,3 @@ class CancellationPreviewResult {
     );
   }
 }
-

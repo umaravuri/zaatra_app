@@ -12,6 +12,7 @@ class DriverOnTripScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -62,7 +63,7 @@ class DriverOnTripScreen extends StatelessWidget {
                     SizedBox(width: 12),
                     Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textMuted),
                     SizedBox(width: 12),
-                    Text('Secundrabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    Text('Secunderabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   ],
                 ),
               ),
@@ -93,7 +94,7 @@ class DriverOnTripScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
                         ),
-                        child: const Text('EAT 02h 45 Mins', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        child: const Text('ETA 02h 45 Mins', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                       ),
                     ),
                     Positioned(
@@ -167,7 +168,7 @@ class DriverOnTripScreen extends StatelessWidget {
               _buildTimelineLine(),
               _buildWaypointItem('12 : 00', 'Begumpet'),
               _buildTimelineLine(),
-              _buildWaypointItem('01 : 00', 'Secundrabad'),
+              _buildWaypointItem('01 : 00', 'Secunderabad'),
 
               const SizedBox(height: 32),
 

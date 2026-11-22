@@ -36,7 +36,7 @@ class IncomingRideRequestDialog extends StatefulWidget {
     required String bookingId,
     String? rideId,
     required String passengerName,
-    String passengerRating = '4.9 (42 rides)',
+    String passengerRating = '',
     required String pickupAddress,
     required String dropoffAddress,
     required String offeredFare,
@@ -69,63 +69,93 @@ class IncomingRideRequestDialog extends StatefulWidget {
 class _IncomingRideRequestDialogState extends State<IncomingRideRequestDialog> {
   bool _isActioning = false;
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
+  }
+
   Future<void> _handleAccept() async {
-    setState(() => _isActioning = true);
-    if (widget.bookingId != null && widget.bookingId!.isNotEmpty) {
-      try {
-        await RideService.respondToBookingRequest(
-          bookingId: widget.bookingId!,
-          action: 'accept',
-        );
-      } catch (_) {}
+    if (_isActioning) return;
+    final bookingId = widget.bookingId;
+    if (bookingId == null || bookingId.isEmpty) {
+      _showError('This request cannot be accepted because its booking ID is missing.');
+      return;
     }
 
-    if (mounted) {
-      setState(() => _isActioning = false);
-      Navigator.pop(context, true);
-      widget.onAccepted?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ride request accepted successfully!'),
-          backgroundColor: Color(0xFF2E7D32),
-          duration: Duration(seconds: 2),
-        ),
+    setState(() => _isActioning = true);
+    Map<String, dynamic> res;
+    try {
+      res = await RideService.respondToBookingRequest(
+        bookingId: bookingId,
+        action: 'accept',
       );
+    } catch (e) {
+      res = {'success': false, 'message': 'Could not accept the request. Please try again.'};
     }
+    if (!mounted) return;
+    setState(() => _isActioning = false);
+
+    if (res['success'] != true) {
+      // Keep the dialog open so the driver can retry or decline.
+      _showError(res['message']?.toString() ?? 'Could not accept the request. Please try again.');
+      return;
+    }
+
+    Navigator.pop(context, true);
+    widget.onAccepted?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Ride request accepted successfully!'),
+        backgroundColor: Color(0xFF2E7D32),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _handleDecline() async {
+    if (_isActioning) return;
+    final bookingId = widget.bookingId;
+    if (bookingId == null || bookingId.isEmpty) {
+      _showError('This request cannot be declined because its booking ID is missing.');
+      return;
+    }
+
     final reason = await DriverDeclineReasonModal.show(
       context,
       passengerName: widget.passengerName ?? 'Passenger',
     );
+    if (reason == null || !mounted) return;
 
-    if (reason != null && mounted) {
-      setState(() => _isActioning = true);
-      if (widget.bookingId != null && widget.bookingId!.isNotEmpty) {
-        try {
-          await DriverService.declineBookingRequest(
-            bookingId: widget.bookingId!,
-            reason: reason,
-          );
-        } catch (_) {}
-      }
-
-      if (mounted) {
-        setState(() => _isActioning = false);
-        Navigator.pop(context, false);
-        widget.onDeclineWithReason?.call(reason);
-      }
+    setState(() => _isActioning = true);
+    Map<String, dynamic> res;
+    try {
+      res = await DriverService.declineBookingRequest(
+        bookingId: bookingId,
+        reason: reason,
+      );
+    } catch (e) {
+      res = {'success': false, 'message': 'Could not decline the request. Please try again.'};
     }
+    if (!mounted) return;
+    setState(() => _isActioning = false);
+
+    if (res['success'] != true) {
+      _showError(res['message']?.toString() ?? 'Could not decline the request. Please try again.');
+      return;
+    }
+
+    Navigator.pop(context, false);
+    widget.onDeclineWithReason?.call(reason);
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.passengerName?.isNotEmpty == true ? widget.passengerName! : 'Sarah Ahmed';
-    final displayRating = widget.passengerRating?.isNotEmpty == true ? widget.passengerRating! : '4.9 (42 rides)';
-    final displayFare = widget.offeredFare?.isNotEmpty == true ? widget.offeredFare! : '₹250';
-    final displayPickup = widget.pickupAddress?.isNotEmpty == true ? widget.pickupAddress! : 'Current Route Pickup';
-    final displayDropoff = widget.dropoffAddress?.isNotEmpty == true ? widget.dropoffAddress! : 'Passenger Destination';
+    final displayName = widget.passengerName?.isNotEmpty == true ? widget.passengerName! : 'Passenger';
+    final displayRating = widget.passengerRating?.isNotEmpty == true ? widget.passengerRating! : 'No rating yet';
+    final displayFare = widget.offeredFare?.isNotEmpty == true ? widget.offeredFare! : '--';
+    final displayPickup = widget.pickupAddress?.isNotEmpty == true ? widget.pickupAddress! : 'Not available';
+    final displayDropoff = widget.dropoffAddress?.isNotEmpty == true ? widget.dropoffAddress! : 'Not available';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

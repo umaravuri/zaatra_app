@@ -33,14 +33,15 @@ class TripCompletedSummaryScreen extends StatelessWidget {
     final fromLoc = origin ?? data['origin'] ?? data['pickupLocation'] ?? data['pickup'] ?? data['from'] ?? 'Origin';
     final toLoc = destination ?? data['destination'] ?? data['dropLocation'] ?? data['drop'] ?? data['to'] ?? 'Destination';
     final date = dateDisplay ?? data['dateDisplay'] ?? data['date'] ?? data['time'] ?? 'Trip Completed';
-    final rawFuel = fuelSaved ?? data['formattedFuelShare'] ?? data['fuelSaved'] ?? data['fuelContribution'] ?? data['price'] ?? '1,650';
-    final fuel = rawFuel.toString().startsWith('₹') ? rawFuel.toString() : '₹ $rawFuel';
-    final mode = paymentMode ?? data['paymentMode'] ?? 'Online';
-    final travelers = coTravelers ?? (data['totalPassengersBoarded'] != null ? '${data['totalPassengersBoarded']}' : (data['coTravelers']?.toString() ?? '3'));
+    final rawFuel = fuelSaved ?? data['formattedFuelShare'] ?? data['fuelSaved'] ?? data['fuelContribution'] ?? data['price'] ?? '--';
+    final fuel = (rawFuel.toString() == '--' || rawFuel.toString().startsWith('₹')) ? rawFuel.toString() : '₹ $rawFuel';
+    final mode = paymentMode ?? data['paymentMode'] ?? '--';
+    final travelers = coTravelers ?? (data['totalPassengersBoarded'] != null ? '${data['totalPassengersBoarded']}' : (data['coTravelers']?.toString() ?? '--'));
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

@@ -1,19 +1,128 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../models/customer_booking_model.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_image_placeholder.dart';
 // import 'booking_invoice_screen_50.dart';
 import '../customer-common/help_support_screen_48.dart';
 
 class CustomerBookingDetailsScreen extends StatelessWidget {
-  const CustomerBookingDetailsScreen({Key? key}) : super(key: key);
+  /// When provided, the screen shows this real booking (no invented values).
+  /// Without it the legacy sample receipt is shown for flows that still use it.
+  final CustomerBookingItem? booking;
 
-  @override
-  Widget build(BuildContext context) {
+  const CustomerBookingDetailsScreen({Key? key, this.booking}) : super(key: key);
+
+  String _raw(List<String> keys) {
+    final json = booking?.rawJson ?? const <String, dynamic>{};
+    for (final k in keys) {
+      final v = json[k]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    return '';
+  }
+
+  Widget _buildBookingSummary(BuildContext context) {
+    final b = booking!;
+    final checkIn = _raw(['checkIn', 'checkInDate']);
+    final checkOut = _raw(['checkOut', 'checkOutDate']);
+    final guests = _raw(['guests', 'capacity']);
+    final rooms = _raw(['rooms', 'roomCount']);
+    final location = _raw(['location', 'city', 'address']);
+    final rows = <MapEntry<String, String>>[
+      if (b.refId.isNotEmpty) MapEntry('Booking ID', b.refId),
+      if (location.isNotEmpty) MapEntry('Location', location),
+      if (checkIn.isNotEmpty) MapEntry('Check - in', checkIn),
+      if (checkOut.isNotEmpty) MapEntry('Check - out', checkOut),
+      if (rooms.isNotEmpty) MapEntry('Rooms', rooms),
+      if (guests.isNotEmpty) MapEntry('Guests', guests),
+      MapEntry('Amount', b.price),
+    ];
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Booking Details',
+            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(b.title,
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: b.statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(b.status,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: b.statusColor)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(b.subtitle, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  const SizedBox(height: 16),
+                  const Divider(color: AppColors.border),
+                  const SizedBox(height: 12),
+                  for (final r in rows) ...[
+                    _buildPriceRow(r.key, r.value),
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            CustomButton(
+              text: 'Support',
+              isOutlined: true,
+              backgroundColor: Colors.white,
+              textColor: AppColors.primary,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (booking != null) return _buildBookingSummary(context);
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

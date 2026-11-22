@@ -11,22 +11,20 @@ class DriverPassengerPinVerificationScreen extends StatefulWidget {
   final String passengerName;
   final String pickupLocation;
   final String dropoffLocation;
-  final String? expectedPin;
   final int totalSeats;
   final List<int> bookedSeats;
   final int boardingSeat;
 
   const DriverPassengerPinVerificationScreen({
     super.key,
-    this.rideId = 'RIDE-8902',
+    required this.rideId,
     this.bookingId,
     this.passengerName = 'Passenger',
-    this.pickupLocation = 'Madhapur',
-    this.dropoffLocation = 'Secunderabad',
-    this.expectedPin = '8492',
+    this.pickupLocation = '',
+    this.dropoffLocation = '',
     this.totalSeats = 4,
-    this.bookedSeats = const [1, 2, 3],
-    this.boardingSeat = 2,
+    this.bookedSeats = const [],
+    this.boardingSeat = 1,
   });
 
   @override
@@ -165,6 +163,7 @@ class _DriverPassengerPinVerificationScreenState extends State<DriverPassengerPi
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context, false),
         ),

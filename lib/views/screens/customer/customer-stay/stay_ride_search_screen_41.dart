@@ -188,7 +188,7 @@ class _StayRideSearchScreenState extends State<StayRideSearchScreen> {
                     border: Border.all(color: const Color(0xFFEAE7F2)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),
@@ -369,7 +369,7 @@ class _StayRideSearchScreenState extends State<StayRideSearchScreen> {
                           Switch(
                             value: _travellingWithPets,
                             activeColor: AppColors.primary,
-                            activeTrackColor: AppColors.primary.withOpacity(0.35),
+                            activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                             inactiveThumbColor: Colors.white,
                             inactiveTrackColor: Colors.grey.shade300,
                             onChanged: (val) {
@@ -404,7 +404,7 @@ class _StayRideSearchScreenState extends State<StayRideSearchScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   ),
@@ -446,7 +446,7 @@ class _StayRideSearchScreenState extends State<StayRideSearchScreen> {
       decoration: BoxDecoration(
         color: AppColors.primaryBackground,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primary.withOpacity(0.18)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
       ),
       child: Center(
         child: Icon(icon, color: AppColors.primary, size: 21),

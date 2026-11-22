@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
+import '../../../../services/trip_card_share.dart';
+import '../../../widgets/route_timeline_tile.dart';
 import 'driver_live_ride_id_screen_96.dart';
 
 class DriverLiveNextPickupScreen extends StatefulWidget {
@@ -47,6 +49,10 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
   late List<Map<String, dynamic>> _timeline;
   late List<Map<String, dynamic>> _seats;
   Map<String, dynamic>? _data;
+  String _vehicleModel = '';
+  String _vehiclePlate = '';
+  String _driverRating = '';
+  bool _isSharing = false;
 
   @override
   void initState() {
@@ -63,7 +69,7 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
       final s = rawFuel.toString();
       _fuel = s.startsWith('₹') ? s : '₹$s';
     } else {
-      _fuel = '₹358';
+      _fuel = '';
     }
 
     _driver = widget.driverName ??
@@ -75,27 +81,23 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
         _data?['driverCode'] ??
         _data?['driver']?['driverCode'] ??
         _data?['code'] ??
-        '#1245';
-    _bookingId = widget.bookingSeatZaatraId ?? _data?['tripDetails']?['bookingSeatZaatraId'] ?? (widget.rideId ?? '20124568');
+        '';
+    _bookingId = widget.bookingSeatZaatraId ?? _data?['tripDetails']?['bookingSeatZaatraId'] ?? (widget.rideId ?? '');
     _pickupLoc = widget.nextPickupLocation ??
         widget.nextPickup?['location'] ??
         _data?['nextPickup']?['location'] ??
-        'Next Pickup';
+        '';
 
     _timeline = widget.routeTimeline ??
         (_data?['routeTimeline'] is List
             ? List<Map<String, dynamic>>.from(_data!['routeTimeline'])
             : _buildDynamicTimeline(_data));
 
+    // Real seats only: nothing is shown (or shared) when the ride gave none.
     _seats = widget.seatsAvailable ??
         (_data?['seatsAvailable'] is List
             ? List<Map<String, dynamic>>.from(_data!['seatsAvailable'])
-            : [
-                {'label': 'S-1 Booked', 'isBooked': true},
-                {'label': 'S-2 Booked', 'isBooked': true},
-                {'label': 'S-3 Booked', 'isBooked': true},
-                {'label': 'Available', 'isBooked': false},
-              ]);
+            : <Map<String, dynamic>>[]);
 
     _loadDriverProfile();
     _loadNextPickup();
@@ -108,57 +110,57 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
           prefs.getString('fullName') ??
           prefs.getString('driver_name') ??
           '';
-      if (mounted && savedName.isNotEmpty && (widget.driverName == null || widget.driverName!.isEmpty) && _driver == 'Driver') {
-        setState(() => _driver = savedName);
-      }
+      final model = prefs.getString('driver_vehicle_model') ?? prefs.getString('vehicleModel') ?? '';
+      final plate = prefs.getString('driver_vehicle_number') ?? prefs.getString('vehicleNumber') ?? '';
+      final rating = prefs.getString('driver_rating') ?? '';
+      if (!mounted) return;
+      setState(() {
+        if (savedName.isNotEmpty && (widget.driverName == null || widget.driverName!.isEmpty) && _driver == 'Driver') {
+          _driver = savedName;
+        }
+        _vehicleModel = model;
+        _vehiclePlate = plate;
+        _driverRating = rating;
+      });
     } catch (_) {}
   }
 
   List<Map<String, dynamic>> _buildDynamicTimeline(Map<String, dynamic>? data) {
-    if (data == null || data.isEmpty) {
-      return [
-        {'time': '09:00', 'location': 'Madhapur', 'isStart': true},
-        {'time': '10:00', 'location': 'Ameerpet', 'isStart': false},
-        {'time': '12:00', 'location': 'Begumpet', 'isStart': false},
-        {'time': '01:00', 'location': 'Secundrabad', 'isStart': false},
-      ];
-    }
-    final origin = data['pickupLocation'] ?? data['origin'] ?? data['pickup'] ?? '';
-    final dest = data['destination'] ?? data['dropLocation'] ?? data['drop'] ?? '';
-    final startTime = data['time'] ?? data['departureTime'] ?? '09:00 AM';
+    if (data == null || data.isEmpty) return <Map<String, dynamic>>[];
+    final origin = (data['pickupLocation'] ?? data['origin'] ?? data['pickup'] ?? '').toString();
+    final dest = (data['destination'] ?? data['dropLocation'] ?? data['drop'] ?? '').toString();
+    final startTime = (data['time'] ?? data['departureTime'] ?? '').toString();
+    if (origin.isEmpty && dest.isEmpty) return <Map<String, dynamic>>[];
 
-    if (origin.toString().isNotEmpty || dest.toString().isNotEmpty) {
-      final list = <Map<String, dynamic>>[];
+    final list = <Map<String, dynamic>>[];
+    if (origin.isNotEmpty) {
       list.add({
-        'time': startTime.toString().split(' ')[0],
-        'location': origin.toString().isNotEmpty ? origin.toString() : 'Origin',
+        'time': startTime.isNotEmpty ? startTime.split(' ')[0] : '',
+        'location': origin,
         'isStart': true,
       });
-      final rawStops = data['stops'] ?? data['intermediatePickups'];
-      if (rawStops is List && rawStops.isNotEmpty) {
-        for (var s in rawStops) {
-          final sName = s is Map ? (s['name'] ?? s['location'] ?? '') : s.toString();
-          final sTime = s is Map ? (s['time'] ?? s['expectedArrival'] ?? '') : '';
-          list.add({
-            'time': sTime.toString().isNotEmpty ? sTime.toString().split(' ')[0] : '',
-            'location': sName.toString(),
-            'isStart': false,
-          });
-        }
+    }
+    final rawStops = data['stops'] ?? data['intermediatePickups'];
+    if (rawStops is List && rawStops.isNotEmpty) {
+      for (final s in rawStops) {
+        final sName = s is Map ? (s['name'] ?? s['location'] ?? '') : s.toString();
+        final sTime = s is Map ? (s['time'] ?? s['expectedArrival'] ?? '') : '';
+        if (sName.toString().isEmpty) continue;
+        list.add({
+          'time': sTime.toString().isNotEmpty ? sTime.toString().split(' ')[0] : '',
+          'location': sName.toString(),
+          'isStart': false,
+        });
       }
+    }
+    if (dest.isNotEmpty) {
       list.add({
-        'time': data['arrivalTime'] ?? '',
-        'location': dest.toString().isNotEmpty ? dest.toString() : 'Destination',
+        'time': (data['arrivalTime'] ?? '').toString(),
+        'location': dest,
         'isStart': false,
       });
-      return list;
     }
-    return [
-      {'time': '09:00', 'location': 'Madhapur', 'isStart': true},
-      {'time': '10:00', 'location': 'Ameerpet', 'isStart': false},
-      {'time': '12:00', 'location': 'Begumpet', 'isStart': false},
-      {'time': '01:00', 'location': 'Secundrabad', 'isStart': false},
-    ];
+    return list;
   }
 
   Future<void> _loadNextPickup() async {
@@ -194,9 +196,7 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
         }
       }
 
-      if (widget.nextPickupLocation != null &&
-          widget.nextPickupLocation!.isNotEmpty &&
-          widget.nextPickupLocation != 'hitech city metro') {
+      if (widget.nextPickupLocation != null && widget.nextPickupLocation!.isNotEmpty) {
         return;
       }
       final res = await RideService.getNextPickupDetails();
@@ -211,12 +211,65 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
     } catch (_) {}
   }
 
+  /// Shares the same purple "Trip Shared" card as the Trip Shared screens.
+  Future<void> _shareTripCard() async {
+    if (_isSharing) return;
+    _isSharing = true;
+
+    final vehicleLine =
+        [_vehicleModel, _vehiclePlate].where((e) => e.trim().isNotEmpty).join(' · ');
+    final status = TripCardShare.statusForStage('during_ride');
+    final data = TripCardShare.buildData(
+      driverName: _driver,
+      vehicleLine: vehicleLine,
+      rating: _driverRating,
+      timeline: _timeline,
+      seats: _seats,
+      estimatedArrival: (_data?['arrivalTime'] ?? '').toString(),
+      statusLabel: status.label,
+      statusColor: status.color,
+    );
+    final url = TripCardShare.urlFor(widget.rideId);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Preparing trip card image...'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
+
+    Map<String, dynamic> res;
+    try {
+      res = await TripCardShare.captureAndShare(
+        context,
+        data: data,
+        text: TripCardShare.buildText(data, url),
+        fallbackUrl: url,
+      );
+    } finally {
+      _isSharing = false;
+    }
+
+    if (!mounted) return;
+    if (res['success'] != true || res['isWeb'] == true) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(res['isWeb'] == true
+              ? 'Sharing the trip card is not supported in the browser.'
+              : (res['message']?.toString() ?? 'Could not share the trip card.')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -227,14 +280,7 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.share_rounded, color: AppColors.textPrimary, size: 22),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Sharing live tracking for Ride ${widget.rideId ?? "RD-101"}...'),
-                  backgroundColor: AppColors.primary,
-                ),
-              );
-            },
+            onPressed: _shareTripCard,
           ),
         ],
         centerTitle: true,
@@ -283,23 +329,11 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
                   const SizedBox(height: 24),
 
                   // Dynamic Waypoint Timeline matching 95.png
-                  ...List.generate(_timeline.length, (i) {
-                    final item = _timeline[i];
-                    final isStart = item['isStart'] == true || item['type'] == 'start' || i == 0;
-                    final isLast = i == _timeline.length - 1;
-                    final time = item['time'] ?? '09:00';
-                    final station = item['location'] ?? item['station'] ?? '';
-
-                    return _buildWaypointTile(
-                      time: time,
-                      station: station,
-                      isStart: isStart,
-                      isLast: isLast,
-                    );
-                  }),
+                  ..._timelineSection(),
 
                   const SizedBox(height: 24),
 
+                  if (_seats.isNotEmpty) ...[
                   // Seats Available Section matching 95.png
                   const Text(
                     'Seats Available',
@@ -326,12 +360,17 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
 
                   const SizedBox(height: 24),
 
-                  _buildInfoRow(Icons.local_gas_station_outlined, 'Fuel Contribution $_fuel'),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(Icons.directions_car_outlined, '$_driver - driver code $_code'),
+                  ],
+
+                  if (_fuel.isNotEmpty) ...[
+                    _buildInfoRow(Icons.local_gas_station_outlined, 'Fuel Contribution $_fuel'),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_driverInfoText.isNotEmpty) _buildInfoRow(Icons.directions_car_outlined, _driverInfoText),
 
                   const SizedBox(height: 28),
 
+                  if (_pickupLoc.isNotEmpty) ...[
                   // Dynamic Next Pickup Banner Section matching 95.png
                   const Text(
                     'Next Pickup',
@@ -345,7 +384,7 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
                         context,
                         MaterialPageRoute(
                           builder: (context) => DriverLiveRideIdScreen(
-                            rideId: widget.rideId ?? 'RD-202524578',
+                            rideId: widget.rideId ?? '',
                             routeTimeline: _timeline,
                             seatsAvailable: _seats,
                             tripData: _data,
@@ -375,6 +414,7 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
                       ),
                     ),
                   ),
+                  ],
                 ],
               ),
             ),
@@ -384,70 +424,49 @@ class _DriverLiveNextPickupScreenState extends State<DriverLiveNextPickupScreen>
     );
   }
 
+  String get _driverInfoText {
+    final name = _driver == 'Driver' ? '' : _driver;
+    final parts = <String>[
+      if (name.isNotEmpty) name,
+      if (_code.trim().isNotEmpty) 'driver code $_code',
+    ];
+    return parts.join(' - ');
+  }
+
+  /// Route rows from real stops only; a short note when the route is unknown.
+  List<Widget> _timelineSection() {
+    final stops = _timeline
+        .where((e) => (e['location'] ?? e['station'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+    if (stops.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'Route details are not available yet.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ),
+      ];
+    }
+    return [
+      for (var i = 0; i < stops.length; i++)
+        _buildWaypointTile(
+          time: (stops[i]['time'] ?? '').toString(),
+          station: (stops[i]['location'] ?? stops[i]['station']).toString(),
+          isStart: i == 0,
+          isLast: i == stops.length - 1,
+        ),
+    ];
+  }
+
   Widget _buildWaypointTile({
     required String time,
     required String station,
     required bool isStart,
     required bool isLast,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Natural width time (works on all screen resolutions)
-          Center(
-            child: Text(
-              time,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // 2. Timeline marker & auto-stretching connecting line
-          Column(
-            children: [
-              isStart
-                  ? const Icon(Icons.directions_car_rounded, color: Colors.redAccent, size: 18)
-                  : Container(
-                      width: 10,
-                      height: 10,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.border,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: AppColors.border,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          // 3. Station text claiming 100% of remaining width on any screen resolution
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16.0),
-              child: Text(
-                station,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return RouteTimelineTile(time: time, station: station, isStart: isStart, isLast: isLast);
   }
 
   Widget _buildSeatBox(String label, {required bool isBooked}) {

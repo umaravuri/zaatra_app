@@ -10,6 +10,7 @@ class DriverSupportHelpScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -55,7 +56,7 @@ class DriverSupportHelpScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.confirmation_number_outlined,
-                    title: 'Raise a Tickets',
+                    title: 'Raise a Ticket',
                     subtitle: 'Get help from our teams',
                   ),
                   const Divider(height: 24, color: AppColors.border),
@@ -69,15 +70,15 @@ class DriverSupportHelpScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.call_outlined,
-                    title: 'Call Supports',
+                    title: 'Call Support',
                     subtitle: '+ 91 000-000-0000',
                   ),
                   const Divider(height: 24, color: AppColors.border),
                   _buildMenuItem(
                     context,
                     icon: Icons.description_outlined,
-                    title: 'Teams & Policies',
-                    subtitle: 'Platform polices & rules',
+                    title: 'Terms & Policies',
+                    subtitle: 'Platform policies & rules',
                   ),
                 ],
               ),

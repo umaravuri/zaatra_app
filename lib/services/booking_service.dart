@@ -117,21 +117,8 @@ class BookingService {
       debugPrint('⚠️ [BookingService] Error in getAllCustomerBookings: $e');
     }
 
-    if (allList.isEmpty) {
-      // Return combined fallback items if offline or demo
-      final fallbacks = [
-        ...getFallbackBookings('Ride'),
-        ...getFallbackBookings('Stay'),
-        ...getFallbackBookings('Heritage Sites'),
-      ];
-      for (final b in fallbacks) {
-        final key = b.bookingId.isNotEmpty ? b.bookingId : b.id;
-        if (key.isNotEmpty && seenIds.add(key)) {
-          allList.add(b);
-        }
-      }
-    }
-
+    // No demo/fallback bookings: an empty list means the customer has none
+    // (or the API is unreachable) and the screen shows its empty state.
     return allList;
   }
 

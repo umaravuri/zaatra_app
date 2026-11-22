@@ -260,13 +260,68 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
         _selectedDateTime = picked;
         _date = '${picked.day} ${months[picked.month - 1]} ${picked.year}';
       });
+
+      // A time chosen earlier (e.g. 9 AM for tomorrow) must not survive a
+      // switch to today if it is already in the past.
+      final existing = _parseTimeString(_time);
+      if (existing != null && _isPastTimeToday(existing)) {
+        setState(() => _time = null);
+        _showPastTimeMessage();
+      }
     }
   }
 
+  // ── Start-time validation (no past times on today's date) ──────────────────
+
+  /// Parses the stored "hh:mm AM/PM" string back into a [TimeOfDay].
+  TimeOfDay? _parseTimeString(String? value) {
+    if (value == null) return null;
+    final m = RegExp(r'^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$', caseSensitive: false)
+        .firstMatch(value);
+    if (m == null) return null;
+    var hour = int.parse(m.group(1)!) % 12;
+    if (m.group(3)!.toUpperCase() == 'PM') hour += 12;
+    return TimeOfDay(hour: hour, minute: int.parse(m.group(2)!));
+  }
+
+  bool _isSelectedDateToday() {
+    final d = _selectedDateTime;
+    if (d == null) return false;
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  /// True when the selected date is today and [t] is earlier than the current
+  /// minute. The current minute itself is still allowed.
+  bool _isPastTimeToday(TimeOfDay t) {
+    if (!_isSelectedDateToday()) return false;
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+    return t.hour * 60 + t.minute < nowMinutes;
+  }
+
+  void _showPastTimeMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Please select a time later than the current time.'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
   Future<void> _selectTime(BuildContext context) async {
+    // On today's date start the picker at the current time, otherwise at 3 PM.
+    final now = TimeOfDay.now();
+    final initial =
+        _isSelectedDateToday() ? now : const TimeOfDay(hour: 15, minute: 0);
+
     final picked = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 15, minute: 0),
+      initialTime: initial,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -282,11 +337,17 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
     );
 
     if (picked != null) {
+      if (_isPastTimeToday(picked)) {
+        // Reject the past time and let the driver choose again.
+        _showPastTimeMessage();
+        if (mounted) await _selectTime(this.context);
+        return;
+      }
       final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
       final minute = picked.minute.toString().padLeft(2, '0');
       final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
       setState(() {
-        _time = '${hour.toString().padLeft(2, '0')}:$minute $period';
+        _time = 'minute $period';
       });
     }
   }
@@ -451,6 +512,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -814,6 +876,25 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
       return;
     }
 
+    // Pickup and destination must be different places.
+    final pickupPoint = _pickupLocation!;
+    final destPoint = _destLocation!;
+    final samePlaceId = (pickupPoint.placeId ?? '').isNotEmpty &&
+        pickupPoint.placeId == destPoint.placeId;
+    final sameAddress = pickupPoint.formattedAddress.trim().isNotEmpty &&
+        pickupPoint.formattedAddress.trim().toLowerCase() ==
+            destPoint.formattedAddress.trim().toLowerCase();
+    if (samePlaceId || sameAddress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pickup and destination cannot be the same place.'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     if (_date == null || _selectedDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -848,6 +929,12 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+      return;
+    }
+
+    final chosenTime = _parseTimeString(_time);
+    if (chosenTime != null && _isPastTimeToday(chosenTime)) {
+      _showPastTimeMessage();
       return;
     }
 
@@ -916,7 +1003,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
 
       _showDuplicateRideDialog(
         dateStr: _date ?? '',
-        routeSummary: '$pickup ➔ $destination${time.isNotEmpty ? " ($time)" : ""}',
+        routeSummary: '$pickup ➔ ${time.isNotEmpty ? " ($time)" : ""}',
       );
     } else {
       _navigateToIntermediatePickups();
@@ -1133,4 +1220,3 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
     );
   }
 }
-

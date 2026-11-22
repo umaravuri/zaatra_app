@@ -21,10 +21,10 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
   bool _isLoading = true;
 
   List<Map<String, dynamic>> _newRequests = [];
-  List<Map<String, dynamic>> _conformedRides = [];
+  List<Map<String, dynamic>> _confirmedRides = [];
   List<Map<String, dynamic>> _allBookings = [];
 
-  List<String> get _filters => ['New (${_newRequests.length})', 'Conformed', 'All'];
+  List<String> get _filters => ['New (${_newRequests.length})', 'Confirmed', 'All'];
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
     try {
       final res = await ApiService.get('/bookings');
       final newReqs = <Map<String, dynamic>>[];
-      final conformedReqs = <Map<String, dynamic>>[];
+      final confirmedReqs = <Map<String, dynamic>>[];
       final allReqs = <Map<String, dynamic>>[];
 
       if (res['success'] == true && res['bookings'] is List) {
@@ -50,7 +50,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
           if (status == 'pending' || status == 'requested' || status == 'new') {
             newReqs.add(b);
           } else if (status == 'confirmed' || status == 'conformed' || status == 'accepted') {
-            conformedReqs.add(b);
+            confirmedReqs.add(b);
           }
         }
       }
@@ -58,7 +58,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
       if (mounted) {
         setState(() {
           _newRequests = newReqs;
-          _conformedRides = conformedReqs;
+          _confirmedRides = confirmedReqs;
           _allBookings = allReqs;
           _isLoading = false;
         });
@@ -81,6 +81,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -152,7 +153,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
 
             const SizedBox(height: 24),
 
-            // Main Content Area based on Selected Filter (New, Conformed, All)
+            // Main Content Area based on Selected Filter (New, Confirmed, All)
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -160,7 +161,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                       color: AppColors.primary,
                       onRefresh: _fetchBookings,
                       child: ((_selectedFilterIndex == 0 && _newRequests.isEmpty) ||
-                              (_selectedFilterIndex == 1 && _conformedRides.isEmpty) ||
+                              (_selectedFilterIndex == 1 && _confirmedRides.isEmpty) ||
                               (_selectedFilterIndex == 2 && _allBookings.isEmpty))
                           ? _buildEmptyState()
                           : ListView(
@@ -172,14 +173,14 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                                         child: _buildNewRequestCard(request),
                                       )),
                                 ] else if (_selectedFilterIndex == 1) ...[
-                                  ..._conformedRides.map((ride) => Padding(
+                                  ..._confirmedRides.map((ride) => Padding(
                                         padding: const EdgeInsets.only(bottom: 20),
-                                        child: _buildConformedRideCard(ride),
+                                        child: _buildConfirmedRideCard(ride),
                                       )),
                                 ] else ...[
-                                  ..._conformedRides.map((ride) => Padding(
+                                  ..._confirmedRides.map((ride) => Padding(
                                         padding: const EdgeInsets.only(bottom: 20),
-                                        child: _buildConformedRideCard(ride),
+                                        child: _buildConfirmedRideCard(ride),
                                       )),
                                   ..._newRequests.map((request) => Padding(
                                         padding: const EdgeInsets.only(bottom: 20),
@@ -224,8 +225,8 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
     );
   }
 
-  // Conformed Ride Card matching Image 1 & 2
-  Widget _buildConformedRideCard(Map<String, dynamic> ride) {
+  // Confirmed Ride Card matching Image 1 & 2
+  Widget _buildConfirmedRideCard(Map<String, dynamic> ride) {
     final name = ride['customerName'] ?? ride['passengerName'] ?? ride['name'] ?? 'Passenger';
     final pickup = ride['pickup'] ?? ride['from'] ?? ride['pickupLocation'] ?? '-';
     final destination = ride['destination'] ?? ride['to'] ?? ride['destinationLocation'] ?? '-';
@@ -350,7 +351,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
 
                 const SizedBox(height: 14),
 
-                // Fare & Conformed Status Badge Row matching Image 1
+                // Fare & Confirmed Status Badge Row matching Image 1
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -369,7 +370,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                           Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 14),
                           SizedBox(width: 4),
                           Text(
-                            'Conformed',
+                            'Confirmed',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                           ),
                         ],
@@ -590,9 +591,9 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                           }
                           setState(() {
                             _newRequests.remove(request);
-                            _conformedRides.add({
+                            _confirmedRides.add({
                               ...request,
-                              'status': 'Conformed',
+                              'status': 'Confirmed',
                             });
                           });
                           if (mounted) {

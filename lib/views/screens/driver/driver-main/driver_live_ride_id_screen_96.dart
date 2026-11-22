@@ -26,19 +26,19 @@ class DriverLiveRideIdScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = tripData ?? {};
-    final String badge = statusBadge ?? data['statusBadge'] ?? 'Seats Open';
+    final String badge = statusBadge ?? data['statusBadge'] ?? 'Live ride';
     final String travelers = coTravelers ??
         data['coTravelers']?.toString() ??
-        (data['passengers'] is List ? '${(data['passengers'] as List).length}' : (data['totalPassengersBoarded']?.toString() ?? '3'));
-    final String rate = rating ?? data['rating']?.toString() ?? data['driverRating']?.toString() ?? '★ 4.8';
+        (data['passengers'] is List ? '${(data['passengers'] as List).length}' : (data['totalPassengersBoarded']?.toString() ?? '--'));
+    final String rate = rating ?? data['rating']?.toString() ?? data['driverRating']?.toString() ?? '--';
     
     final rawFuel = fuelSaved ??
         data['fuelSaved']?.toString() ??
         data['fuelContribution']?.toString() ??
         data['price']?.toString() ??
-        '₹ 1,650';
-    final String fuel = rawFuel.startsWith('₹') ? rawFuel : '₹ $rawFuel';
-    final String displayRideId = rideId ?? data['rideId'] ?? '20124568';
+        '--';
+    final String fuel = (rawFuel == '--' || rawFuel.startsWith('₹')) ? rawFuel : '₹ $rawFuel';
+    final String displayRideId = rideId ?? data['rideId'] ?? '--';
 
     // Dynamic timeline
     final List<Map<String, dynamic>> timeline = routeTimeline ??
@@ -50,6 +50,7 @@ class DriverLiveRideIdScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -120,7 +121,7 @@ class DriverLiveRideIdScreen extends StatelessWidget {
                     final item = timeline[i];
                     final isStart = item['isStart'] == true || item['type'] == 'start' || i == 0;
                     final isLast = i == timeline.length - 1;
-                    final time = item['time'] ?? '09:00';
+                    final time = item['time'] ?? '';
                     final station = item['location'] ?? item['station'] ?? '';
 
                     return Column(
@@ -256,7 +257,7 @@ class DriverLiveRideIdScreen extends StatelessWidget {
   static List<Map<String, dynamic>> _buildDynamicTimeline(Map<String, dynamic> data) {
     final origin = data['pickupLocation'] ?? data['origin'] ?? data['pickup'] ?? '';
     final dest = data['destination'] ?? data['dropLocation'] ?? data['drop'] ?? '';
-    final startTime = data['time'] ?? data['departureTime'] ?? '09:00 AM';
+    final startTime = data['time'] ?? data['departureTime'] ?? '';
 
     if (origin.toString().isNotEmpty || dest.toString().isNotEmpty) {
       final list = <Map<String, dynamic>>[];
@@ -284,11 +285,7 @@ class DriverLiveRideIdScreen extends StatelessWidget {
       });
       return list;
     }
-    return [
-      {'time': '9 : 00', 'location': 'Madhapur', 'isStart': true},
-      {'time': '10 : 00', 'location': 'Ameerpet', 'isStart': false},
-      {'time': '12 : 00', 'location': 'Begumpet', 'isStart': false},
-      {'time': '01 : 00', 'location': 'Secundrabad', 'isStart': false},
-    ];
+    // No route data: show an empty timeline rather than an invented route.
+    return <Map<String, dynamic>>[];
   }
 }

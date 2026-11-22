@@ -8,6 +8,8 @@ import '../customer-stay/customer_home_screen_38.dart';
 import '../customer-stay/heritage_places_screen.dart';
 import '../customer-ride/customer_rate_ride_sheet.dart';
 import '../customer-ride/ride_confirmed_detail_screen_112.dart';
+import 'active_ride_card.dart';
+import 'cancelled_ride_card.dart';
 
 class CustomerBookingsHistoryScreen extends StatefulWidget {
   final String? initialCategory;
@@ -27,16 +29,18 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // The 4 requested fields
+  // Matches the 5 tabs in Figma (88246763-67)
   final List<String> _tabs = const [
     'Upcoming',
     'Completed',
     'Active',
     'Pending',
+    'Cancelled',
   ];
 
   bool _isLoading = true;
   List<CustomerBookingItem> _allBookings = [];
+  final Map<String, List<CustomerBookingItem>> _buckets = {};
 
   @override
   void initState() {
@@ -74,6 +78,7 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
       if (mounted) {
         setState(() {
           _allBookings = items;
+          _buckets.clear();
           _isLoading = false;
         });
       }
@@ -86,100 +91,102 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
     }
   }
 
+  /// Buckets by [CustomerBookingItem.state] (derived once from the raw API status).
+  /// Bookings with an unrecognised status stay visible under Upcoming.
   List<CustomerBookingItem> _getBookingsForTab(String tab) {
-    return _allBookings.where((booking) {
-      final s = booking.status.toLowerCase();
-      final rawS = (booking.rawJson['status'] ?? '').toString().toLowerCase();
-      final statusBadge = (booking.statusBadge?['text'] ?? '').toString().toLowerCase();
-      final text = '$s $rawS $statusBadge';
-
-      switch (tab) {
-        case 'Active':
-          return text.contains('active') ||
-              text.contains('ongoing') ||
-              text.contains('in_progress') ||
-              text.contains('in progress') ||
-              text.contains('started') ||
-              text.contains('live');
-
-        case 'Completed':
-          return text.contains('complete') ||
-              text.contains('finished') ||
-              text.contains('ended') ||
-              text.contains('done');
-
-        case 'Pending':
-          return text.contains('pending') ||
-              text.contains('requested') ||
-              text.contains('awaiting') ||
-              text.contains('waiting') ||
-              text.contains('denied') ||
-              text.contains('cancelled') ||
-              text.contains('decline') ||
-              text.contains('reject');
-
-        case 'Upcoming':
-        default:
-          if (text.contains('complete') ||
-              text.contains('finished') ||
-              text.contains('ended') ||
-              text.contains('done')) {
-            return false;
-          }
-          if (text.contains('active') ||
-              text.contains('started') ||
-              text.contains('in_progress') ||
-              text.contains('ongoing')) {
-            return false;
-          }
-          if (text.contains('pending') ||
-              text.contains('waiting') ||
-              text.contains('requested') ||
-              text.contains('denied') ||
-              text.contains('cancel') ||
-              text.contains('decline') ||
-              text.contains('reject')) {
-            return false;
-          }
-          return true; // Default fallback for scheduled / confirmed bookings
-      }
-    }).toList();
+    return _buckets.putIfAbsent(tab, () {
+      return _allBookings.where((booking) {
+        switch (tab) {
+          case 'Active':
+            return booking.state == BookingState.active;
+          case 'Completed':
+            return booking.state == BookingState.completed;
+          case 'Pending':
+            return booking.state == BookingState.pending;
+          case 'Cancelled':
+            return booking.state == BookingState.cancelled;
+          case 'Upcoming':
+          default:
+            return booking.state == BookingState.upcoming || booking.state == BookingState.unknown;
+        }
+      }).toList();
+    });
   }
 
-  void _onBookingTapped(CustomerBookingItem booking) {
+  Future<void> _onBookingTapped(CustomerBookingItem booking) async {
     if (booking.category == 'Ride') {
-      Navigator.push(
+      final changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (context) => RideConfirmedDetailScreen112(
-            bookingId: booking.id.isNotEmpty ? booking.id : booking.bookingId,
+            bookingId: booking.refId,
             bookingData: booking.rawJson,
+            state: booking.state,
           ),
         ),
       );
-    } else if (booking.category == 'Stay') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const CustomerBookingDetailsScreen(),
-        ),
-      );
+      // Cancelled / rated from the detail screen: reload so the tab buckets update.
+      if (changed == true && mounted) _fetchAllBookings();
     } else if (booking.category == 'Heritage Sites') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HeritagePlacesScreen(),
-        ),
-      );
+      _showBookingSummarySheet(booking);
     } else {
-      // Banquet Halls
+      // Stay / Banquet Halls
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const CustomerBookingDetailsScreen(),
+          builder: (context) => CustomerBookingDetailsScreen(booking: booking),
         ),
       );
     }
+  }
+
+  /// Heritage bookings have no dedicated detail screen; show their own summary
+  /// instead of dropping the user into the generic heritage catalog.
+  void _showBookingSummarySheet(CustomerBookingItem booking) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(booking.title,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            Text(booking.subtitle, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 12),
+            Text('Status: ${booking.status}',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: booking.statusColor)),
+            if (booking.refId.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('Booking ID: ${booking.refId}',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            ],
+            const SizedBox(height: 6),
+            Text('Amount: ${booking.price}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HeritagePlacesScreen()),
+                  );
+                },
+                child: const Text('Explore more heritage places'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -361,6 +368,27 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
+          if (booking.state == BookingState.active && booking.category.toLowerCase() == 'ride') {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ActiveRideCard(
+                booking: booking,
+                onViewDetails: () => _onBookingTapped(booking),
+              ),
+            );
+          }
+          if (booking.state == BookingState.cancelled) {
+            if (booking.category.toLowerCase() == 'ride') {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: CancelledRideCard(
+                  booking: booking,
+                  onViewDetails: () => _onBookingTapped(booking),
+                ),
+              );
+            }
+            return _buildCancelledCard(booking);
+          }
           return _buildBookingCard(booking, tab: tab);
         },
       ),
@@ -377,9 +405,112 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
         return Icons.task_alt_rounded;
       case 'Pending':
         return Icons.hourglass_empty_rounded;
+      case 'Cancelled':
+        return Icons.cancel_outlined;
       default:
         return Icons.event_note_outlined;
     }
+  }
+
+  /// Cancelled booking card (Figma 88246766): optional "Auto-Cancelled" label,
+  /// paid amount, refund status and an outlined View Details button.
+  Widget _buildCancelledCard(CustomerBookingItem booking) {
+    final raw = booking.rawJson;
+    final rawStatus = (raw['status'] ?? '').toString().toLowerCase();
+    final isAuto = rawStatus.contains('auto') || raw['autoCancelled'] == true;
+    final refundText = (raw['refundMessage'] ?? raw['refundStatus'] ?? raw['refundNote'] ?? '').toString().trim();
+    final hasPrice = booking.price.isNotEmpty && booking.price != '—';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isAuto) ...[
+            const Text('Auto-Cancelled',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3EDF7),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(booking.icon, color: AppColors.primary, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(booking.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text(booking.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (hasPrice) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F8F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Paid ${booking.price}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.success)),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 10),
+          const Text('Refund status',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppColors.primary)),
+          const SizedBox(height: 4),
+          Text(
+            refundText.isNotEmpty
+                ? refundText
+                : 'Any refund is credited to your original payment method as per the cancellation policy.',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton(
+              onPressed: () => _onBookingTapped(booking),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('View Details',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildBookingCard(CustomerBookingItem booking, {required String tab}) {
@@ -531,7 +662,7 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
               ),
             ],
             if (booking.category.toLowerCase() == 'ride' &&
-                (tab == 'Completed' || booking.status.toLowerCase().contains('complete'))) ...[
+                booking.state == BookingState.completed) ...[
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -540,7 +671,9 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
                     onTap: () {
                       CustomerRateRideSheet.show(
                         context,
-                        bookingId: booking.bookingId,
+                        // rawJson carries rideId / driverId, which the sheet needs to load and submit the rating.
+                        bookingData: booking.rawJson,
+                        bookingId: booking.refId,
                         destination: booking.destinationLocation.isNotEmpty
                             ? booking.destinationLocation.split(',').first
                             : 'Destination',
@@ -551,7 +684,7 @@ class _CustomerBookingsHistoryScreenState extends State<CustomerBookingsHistoryS
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF3EDF7),
                         borderRadius: BorderRadius.circular(8),

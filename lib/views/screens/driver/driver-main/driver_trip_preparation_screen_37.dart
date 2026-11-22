@@ -13,6 +13,7 @@ class DriverTripPreparationScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -66,7 +67,7 @@ class DriverTripPreparationScreen extends StatelessWidget {
                         SizedBox(width: 10),
                         Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textMuted),
                         SizedBox(width: 10),
-                        Text('Secundrabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        Text('Secunderabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -91,7 +92,7 @@ class DriverTripPreparationScreen extends StatelessWidget {
               _buildTimelineLine(),
               _buildWaypointItem('12 : 00', 'Begumpet'),
               _buildTimelineLine(),
-              _buildWaypointItem('01 : 00', 'Secundrabad'),
+              _buildWaypointItem('01 : 00', 'Secunderabad'),
 
               const SizedBox(height: 24),
 
@@ -131,7 +132,7 @@ class DriverTripPreparationScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const [
-                  Text('pink square mall,Madhapur', style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                  Text('Pink Square Mall, Madhapur', style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
                   Text('07 : 45 AM', style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
                 ],
               ),

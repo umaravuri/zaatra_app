@@ -193,7 +193,7 @@ class _StaySearchResultsScreenState extends State<StaySearchResultsScreen> {
       if (len > 3) {
         final lastThree = str.substring(len - 3);
         final remaining = str.substring(0, len - 3);
-        return '$remaining,$lastThree';
+        return 'lastThree';
       }
     }
     return price.toStringAsFixed(0);
@@ -235,7 +235,7 @@ class _StaySearchResultsScreenState extends State<StaySearchResultsScreen> {
               subtitle,
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w400,
               ),
               maxLines: 1,
@@ -350,7 +350,7 @@ class _StaySearchResultsScreenState extends State<StaySearchResultsScreen> {
                               border: Border.all(color: const Color(0xFFE8E8EE)),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
+                                  color: Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -386,11 +386,11 @@ class _StaySearchResultsScreenState extends State<StaySearchResultsScreen> {
                                           width: 30,
                                           height: 30,
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.9),
+                                            color: Colors.white.withValues(alpha: 0.9),
                                             shape: BoxShape.circle,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.12),
+                                                color: Colors.black.withValues(alpha: 0.12),
                                                 blurRadius: 4,
                                               ),
                                             ],
@@ -455,7 +455,7 @@ class _StaySearchResultsScreenState extends State<StaySearchResultsScreen> {
                                           ),
                                           Flexible(
                                             child: Text(
-                                              ' , Exceptional ${hotel.reviewCount} reviews',
+                                              ', Exceptional ${hotel.reviewCount} reviews',
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 color: AppColors.textSecondary,

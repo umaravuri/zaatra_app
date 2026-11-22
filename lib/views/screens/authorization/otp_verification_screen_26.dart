@@ -100,7 +100,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length >= 10) {
       final last10 = digits.substring(digits.length - 10);
-      return '+91 ${last10.substring(0, 3)}-${last10.substring(3, 6)}-${last10.substring(6)}';
+      return '+91 ${last10.substring(3, 6)}-${last10.substring(6)}';
     }
     return raw.isNotEmpty ? raw : '+91 000-000-0000';
   }
@@ -194,7 +194,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         }
       } catch (_) {}
 
-      final bool isSessionOtpValid = code == _currentExpectedOtp || code == '123456';
+      // Only the code issued for this session (or the server's verification) is valid.
+      final bool isSessionOtpValid = _currentExpectedOtp.isNotEmpty && code == _currentExpectedOtp;
 
       if (!isBackendVerified && !isSessionOtpValid) {
         if (!mounted) return;
@@ -370,7 +371,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
                   const SizedBox(height: 18),
 
-                  // Trial Mode / Developer Sample OTP Card
+                  // Trial Mode / Developer Sample OTP Card (only when the server returned a code)
+                  if (_currentExpectedOtp.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(

@@ -96,6 +96,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
+            tooltip: 'Back',
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
@@ -139,6 +140,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
+                  tooltip: 'Back',
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
                   onPressed: () => Navigator.pop(context),
                 ),

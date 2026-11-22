@@ -149,20 +149,23 @@ class _DriverPersonalInfoScreenState extends State<DriverPersonalInfoScreen> {
       return;
     }
 
-    if (!RegExp(r"^[a-zA-Z\s]+$").hasMatch(name)) {
+    // Letters, spaces and the punctuation real names use (O'Brien, Mary-Anne, J. Smith).
+    if (!RegExp(r"^[A-Za-z][A-Za-z\s.'-]*$").hasMatch(name)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Name must contain only alphabetic letters and spaces (no numbers or special characters).'),
+          content: Text('Name can contain only letters, spaces and . \' - (no numbers or other symbols).'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    if (phone.isEmpty || phone.length < 10) {
+    final phoneDigits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final tenDigitPhone = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : phoneDigits;
+    if (!RegExp(r'^[6-9][0-9]{9}$').hasMatch(tenDigitPhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid 10-digit mobile number.'),
+          content: Text('Please enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -170,7 +173,7 @@ class _DriverPersonalInfoScreenState extends State<DriverPersonalInfoScreen> {
     }
 
     // Email is optional, but if entered, validate simple format
-    if (email.isNotEmpty && !email.contains('@')) {
+    if (email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a valid email address, or leave it blank.'),
@@ -199,7 +202,26 @@ class _DriverPersonalInfoScreenState extends State<DriverPersonalInfoScreen> {
       );
     } catch (_) {}
 
-    final rawDriver = step1Response?['driver'] is Map ? (step1Response!['driver'] as Map<String, dynamic>) : null;
+    // Do not advance (or mark the driver as registered locally) unless the server accepted step 1.
+    if (step1Response == null || step1Response['success'] != true) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              step1Response?['message']?.toString() ??
+                  'Could not save your details. Please check your connection and try again.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    final rawDriver = step1Response['driver'] is Map ? (step1Response['driver'] as Map<String, dynamic>) : null;
     final userId = rawDriver?['userId'] ?? rawDriver?['id'] ?? rawDriver?['_id'];
 
     final driverData = {
@@ -210,10 +232,10 @@ class _DriverPersonalInfoScreenState extends State<DriverPersonalInfoScreen> {
       'phone': formattedPhone,
       'cleanPhone': tenDigits,
       'city': location.isNotEmpty ? location : (rawDriver?['city'] ?? ''),
-      'location': location.isNotEmpty ? location : 'India',
+      'location': location,
       'country': 'India',
       if (userId != null) 'userId': userId.toString(),
-      if (step1Response != null) 'step1Response': step1Response,
+      'step1Response': step1Response,
     };
 
     // Save locally

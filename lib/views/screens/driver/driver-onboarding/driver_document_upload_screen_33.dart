@@ -271,7 +271,7 @@ class _DriverDocumentUploadScreenState extends State<DriverDocumentUploadScreen>
             children: [
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Expanded(child: Text('$fileName attached ($sizeStr)')),
+              Expanded(child: Text('sizeStr)')),
             ],
           ),
           backgroundColor: const Color(0xFF2E7D32),
@@ -295,15 +295,38 @@ class _DriverDocumentUploadScreenState extends State<DriverDocumentUploadScreen>
     final tenDigits = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : cleanDigits;
 
     // Call API 3: POST /api/drivers/register/step-2 (or /drivers/onboarding/step-2)
+    // Documents are currently optional, so only call the API when something was attached;
+    // if an upload was attempted and the server rejects it, stop and tell the driver.
     Map<String, dynamic>? step2Response;
-    try {
-      step2Response = await DriverService.registerStep2(
-        phone: tenDigits,
-        drivingLicense: _licenseFrontUploaded ? (_licenseFrontFile ?? _licenseFrontFileName) : null,
-        vehicleRegistration: _rcUploaded ? (_rcFile ?? _rcFileName) : null,
-        drivingLicenseBack: _licenseBackUploaded ? (_licenseBackFile ?? _licenseBackFileName) : null,
-      );
-    } catch (_) {}
+    final hasAnyDocument = _licenseFrontUploaded || _rcUploaded || _licenseBackUploaded;
+    if (hasAnyDocument) {
+      try {
+        step2Response = await DriverService.registerStep2(
+          phone: tenDigits,
+          drivingLicense: _licenseFrontUploaded ? (_licenseFrontFile ?? _licenseFrontFileName) : null,
+          vehicleRegistration: _rcUploaded ? (_rcFile ?? _rcFileName) : null,
+          drivingLicenseBack: _licenseBackUploaded ? (_licenseBackFile ?? _licenseBackFileName) : null,
+        );
+      } catch (_) {}
+
+      if (step2Response == null || step2Response['success'] != true) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                step2Response?['message']?.toString() ??
+                    'Could not upload your documents. Please check your connection and try again.',
+              ),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+    }
 
     final updatedDriverData = {
       ...?widget.driverData,
@@ -317,6 +340,7 @@ class _DriverDocumentUploadScreenState extends State<DriverDocumentUploadScreen>
       },
       if (step2Response != null) 'step2Response': step2Response,
     };
+
 
     if (mounted) {
       setState(() {

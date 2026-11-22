@@ -20,6 +20,7 @@ class DriverRideStartBoardingScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -74,7 +75,7 @@ class DriverRideStartBoardingScreen extends StatelessWidget {
                               SizedBox(width: 12),
                               Icon(Icons.arrow_forward_rounded, color: AppColors.textSecondary, size: 18),
                               SizedBox(width: 12),
-                              Text('Secundrabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                              Text('Secunderabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                             ],
                           ),
                           SizedBox(height: 6),
@@ -113,7 +114,7 @@ class DriverRideStartBoardingScreen extends StatelessWidget {
                           children: [
                             Text('Destination', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                             SizedBox(height: 2),
-                            Text('Secundrabad', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                            Text('Secunderabad', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           ],
                         ),
                       ],
@@ -169,7 +170,7 @@ class DriverRideStartBoardingScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => DriverTripSharedScreen(stage: 'during_ride', rideId: rideId, tripData: tripData),
+                          builder: (context) => DriverTripSharedScreen(stage: 'before_ride', rideId: rideId, tripData: tripData),
                         ),
                       );
                     },

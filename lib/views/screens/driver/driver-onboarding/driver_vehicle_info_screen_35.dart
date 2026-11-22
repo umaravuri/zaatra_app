@@ -42,12 +42,68 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
     super.dispose();
   }
 
+  /// Indian registration plates: e.g. AP39AB1234, TS 09 EA 1234, DL-1C-AB-1234, and the BH series (22BH1234AA).
+  static final RegExp _plateRegex = RegExp(r'^([A-Z]{2}\d{1,2}[A-Z]{0,3}\d{4}|\d{2}BH\d{4}[A-Z]{1,2})$');
+
+  String? _validateVehicle({
+    required String type,
+    required String make,
+    required String model,
+    required String plate,
+    required String year,
+    bool optionalIfEmpty = false,
+  }) {
+    // During registration vehicle details are optional: leaving everything empty is fine.
+    // Once the driver starts filling them in (or when posting a ride) they must be complete.
+    final allEmpty = [type, make, model, plate, year].every((v) => v.isEmpty);
+    if (optionalIfEmpty && allEmpty) return null;
+
+    if (type.isEmpty) return 'Please enter your vehicle type (for example Sedan or SUV).';
+    if (make.isEmpty) return 'Please enter the vehicle make (for example Toyota).';
+    if (model.isEmpty) return 'Please enter the vehicle model (for example Innova).';
+    if (year.isEmpty) return 'Please select the vehicle year.';
+    if (plate.isEmpty) return 'Please enter the vehicle number plate.';
+    final compactPlate = plate.replaceAll(RegExp(r'[\s-]'), '');
+    if (!_plateRegex.hasMatch(compactPlate)) {
+      return 'Please enter a valid number plate, for example AP39AB1234.';
+    }
+    return null;
+  }
+
+  /// "Skip for now": register without vehicle details (they are asked for again when posting a ride).
+  void _skipVehicle() {
+    setState(() {
+      _vehicleTypeController.clear();
+      _makeController.clear();
+      _modelController.clear();
+      _vehicleNumberController.clear();
+      _selectedYear = null;
+    });
+    _submitApplication();
+  }
+
   void _submitApplication() async {
     final vehicleType = _vehicleTypeController.text.trim();
     final vehicleMake = _makeController.text.trim();
     final vehicleModel = _modelController.text.trim();
     final vehicleNumber = _vehicleNumberController.text.trim().toUpperCase();
     final vehicleYear = _selectedYear ?? '';
+
+    final validationError = _validateVehicle(
+      type: vehicleType,
+      make: vehicleMake,
+      model: vehicleModel,
+      plate: vehicleNumber,
+      year: vehicleYear,
+      // Reached from "Post a ride" (redirectToPostRide): every field is mandatory there.
+      optionalIfEmpty: !widget.redirectToPostRide,
+    );
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(validationError), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -64,9 +120,9 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
       final tenDigits = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : cleanDigits;
 
       // 1. Call API 2: POST /api/drivers/vehicle-info (Submit Vehicle Information)
-      Map<String, dynamic>? submitRes;
+      // Best-effort: registerStep3 below is the authoritative call and is checked.
       try {
-        submitRes = await DriverService.submitVehicleInfo(
+        await DriverService.submitVehicleInfo(
           vehicleType: vehicleType,
           vehicleMake: vehicleMake,
           vehicleModel: vehicleModel,
@@ -88,6 +144,21 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
         );
       } catch (_) {}
 
+      // Never mark the driver as onboarded or open the dashboard if the server rejected the registration.
+      if (step3Response == null || step3Response['success'] != true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              step3Response?['message']?.toString() ??
+                  'Could not complete your registration. Please check your connection and try again.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       // Also sync via legacy updateVehicleInfo as safety net
       try {
         await DriverService.updateVehicleInfo(
@@ -100,8 +171,8 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
       } catch (_) {}
 
       // 2. Extract returned auth token and driver profile
-      final token = step3Response?['token']?.toString() ?? step3Response?['data']?['token']?.toString();
-      final rawDriver = step3Response?['driver'] is Map ? (step3Response!['driver'] as Map<String, dynamic>) : null;
+      final token = step3Response['token']?.toString() ?? step3Response['data']?['token']?.toString();
+      final rawDriver = step3Response['driver'] is Map ? (step3Response['driver'] as Map<String, dynamic>) : null;
       final userId = rawDriver?['userId']?.toString() ??
           rawDriver?['id']?.toString() ??
           rawDriver?['_id']?.toString() ??
@@ -113,7 +184,7 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
           '';
 
       // 3. Save locally to SharedPreferences to mark driver as onboarded
-      final plateVal = vehicleNumber.isNotEmpty ? vehicleNumber : (vehicleType.isNotEmpty ? vehicleType : 'VERIFIED');
+      final plateVal = vehicleNumber;
       if (cleanDigits.isNotEmpty) {
         await prefs.setBool('is_old_driver_$cleanDigits', true);
         await prefs.setBool('is_old_driver_$tenDigits', true);
@@ -140,6 +211,11 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
         await prefs.setString('driver_user_id', userId);
       }
 
+      if (!widget.redirectToPostRide && tenDigits.isNotEmpty) {
+        // Newly registered drivers start active.
+        await DriverService.markOnlineAtLogin('+91 $tenDigits');
+      }
+
       // Establish 30-day persistent session if token returned
       if (token != null && token.isNotEmpty) {
         await AuthService.createSession(
@@ -154,7 +230,7 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
 
       if (!mounted) return;
 
-      final successMsg = step3Response?['message']?.toString() ?? 'Vehicle registered successfully!';
+      final successMsg = step3Response['message']?.toString() ?? 'Vehicle registered successfully!';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(successMsg),
@@ -184,30 +260,14 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
         );
       }
     } catch (e) {
+      // Stay on this screen so the driver can retry; do not open the dashboard on failure.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Note: $e'),
-          backgroundColor: Colors.orange,
+        const SnackBar(
+          content: Text('Something went wrong while saving your vehicle. Please try again.'),
+          backgroundColor: Colors.redAccent,
         ),
       );
-      if (widget.redirectToPostRide) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DriverMyRideScreen(),
-          ),
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: AppRoutes.driverHome),
-            builder: (context) => const DriverHomeDashboardScreen83(),
-          ),
-          (route) => false,
-        );
-      }
     } finally {
       if (mounted) {
         setState(() {
@@ -362,7 +422,7 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
 
                   const SizedBox(height: 18),
 
-                  // Field 5: Year (Dropdown 1990 to 2026)
+                  // Field 5: Year (Dropdown from 1990 up to next year)
                   _buildYearDropdown(),
 
                   const SizedBox(height: 36),
@@ -400,6 +460,29 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
                             ),
                     ),
                   ),
+
+                  if (!widget.redirectToPostRide) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _skipVehicle,
+                        child: const Text(
+                          'Skip for now',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Vehicle details are optional now, but you will need to add them before you can post a ride.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 32),
                 ],
@@ -467,7 +550,8 @@ class _DriverVehicleInfoScreenState extends State<DriverVehicleInfoScreen> {
   }
 
   Widget _buildYearDropdown() {
-    final years = List<String>.generate(37, (i) => (2026 - i).toString());
+    final latestYear = DateTime.now().year + 1; // next-year models are already on sale
+    final years = List<String>.generate(latestYear - 1990 + 1, (i) => (latestYear - i).toString());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

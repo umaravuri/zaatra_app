@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../services/driver_service.dart';
-import '../../../../services/ride_service.dart';
-import '../../../widgets/driver_decline_reason_modal.dart';
 import 'driver_booking_requests_screen_99.dart';
 
 class DriverMessagesScreen88246846 extends StatefulWidget {
@@ -95,92 +91,6 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
     }
   }
 
-  Future<void> _respondToRequest({
-    required Map<String, dynamic> request,
-    required String action, // 'accept' or 'decline'
-    String? reason,
-  }) async {
-    final bookingId = (request['bookingId'] ?? request['id'] ?? request['_id'] ?? '').toString();
-    final name = (request['passengerName'] ?? request['customerName'] ?? request['name'] ?? 'Passenger').toString();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            Text(action == 'accept' ? 'Accepting request...' : 'Declining request...'),
-          ],
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-
-    try {
-      final res = await RideService.respondToBookingRequest(
-        bookingId: bookingId,
-        action: action,
-        reason: reason,
-      );
-
-      if (action == 'decline' && bookingId.isNotEmpty) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final declinedList = prefs.getStringList('driver_declined_booking_ids') ?? [];
-          if (!declinedList.contains(bookingId)) {
-            declinedList.add(bookingId);
-            await prefs.setStringList('driver_declined_booking_ids', declinedList);
-          }
-        } catch (_) {}
-      }
-
-      if (mounted) {
-        if (res['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                action == 'accept'
-                    ? 'Accepted ride request from $name!'
-                    : 'Declined ride request from $name.',
-              ),
-              backgroundColor: action == 'accept' ? const Color(0xFF2E7D32) : const Color(0xFFE53935),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(res['message'] ?? 'Action completed.'),
-            ),
-          );
-        }
-        _loadData();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _showDeclineReasonDialog(Map<String, dynamic> request) async {
-    final name = (request['passengerName'] ?? request['customerName'] ?? request['name'] ?? 'Passenger').toString();
-
-    final result = await DriverDeclineReasonModal.show(
-      context,
-      passengerName: name,
-    );
-
-    if (result != null && result.isNotEmpty) {
-      _respondToRequest(request: request, action: 'decline', reason: result);
-    }
-  }
-
   void _openChatConversation(Map<String, dynamic> thread) async {
     final convId = thread['conversationId']?.toString() ?? thread['id']?.toString() ?? '';
     if (convId.isNotEmpty) {
@@ -197,66 +107,13 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
     }
   }
 
-  void _openRequestAction(Map<String, dynamic> request) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text((request['passengerName'] ?? request['customerName'] ?? 'Ride Request').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Route: ${request['route'] ?? ((request['from'] != null && request['to'] != null) ? "${request['from']} ➔ ${request['to']}" : "")}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text('Time: ${request['time'] ?? request['departureTime'] ?? "Today"}', style: const TextStyle(fontSize: 12, color: Color(0xFF757575))),
-            const SizedBox(height: 4),
-            Text('Seats: ${request['seats'] ?? request['seatsBooked'] ?? 1} seat(s)', style: const TextStyle(fontSize: 12, color: Color(0xFF757575))),
-            const SizedBox(height: 4),
-            Text('Offered Fare: ${request['offeredPrice'] ?? request['totalAmount'] ?? "₹ 250"}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5B3AA8))),
-            if (request['note'] != null && request['note'].toString().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3EDF7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('Note: "${request['note']}"', style: const TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic)),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showDeclineReasonDialog(request);
-            },
-            child: const Text('Decline', style: TextStyle(color: Color(0xFFE53935))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _respondToRequest(request: request, action: 'accept');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B3AA8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Accept Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E1B1E), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -345,7 +202,6 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
                             onTap: () {
                               if (_selectedTab != 1) {
                                 setState(() => _selectedTab = 1);
-                                _loadData();
                               }
                             },
                             child: AnimatedContainer(
@@ -375,15 +231,24 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
 
                 // Active Tab Content List
                 Expanded(
-                  child: RefreshIndicator(
-                    color: const Color(0xFF5B3AA8),
-                    onRefresh: _loadData,
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B3AA8)))
-                        : _selectedTab == 0
-                            ? _buildMessagesList()
-                            : _buildRequestsList(),
-                  ),
+                  child: _selectedTab == 1
+                      // Requests go straight to the booking requests (Booking request /
+                      // Accepted / Denied); the view has its own loader and refresh.
+                      ? DriverBookingRequestsView(
+                          key: const ValueKey('messages_requests_view'),
+                          onCountsChanged: (count) {
+                            if (mounted && count != _totalRequests) {
+                              setState(() => _totalRequests = count);
+                            }
+                          },
+                        )
+                      : RefreshIndicator(
+                          color: const Color(0xFF5B3AA8),
+                          onRefresh: _loadData,
+                          child: _isLoading
+                              ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B3AA8)))
+                              : _buildMessagesList(),
+                        ),
                 ),
               ],
             ),
@@ -435,7 +300,7 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
               border: Border.all(color: const Color(0xFFEDE7F6), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: Colors.black.withValues(alpha: 0.02),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -534,194 +399,6 @@ class _DriverMessagesScreen88246846State extends State<DriverMessagesScreen88246
       },
     );
   }
-
-  Widget _buildRequestsList() {
-    if (_requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 54, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            const Text('No Pending Requests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
-            const SizedBox(height: 4),
-            const Text('New passenger booking requests will appear here', style: TextStyle(fontSize: 12, color: Color(0xFF757575))),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DriverBookingRequestsScreen(initialTabIndex: 0),
-                  ),
-                );
-                if (mounted) _loadData();
-              },
-              icon: const Icon(Icons.history_rounded, size: 16, color: Color(0xFF5B3AA8)),
-              label: const Text('View All Request History', style: TextStyle(color: Color(0xFF5B3AA8), fontSize: 13, fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFEDE7F6), width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${_requests.length} Pending Request${_requests.length == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF757575)),
-              ),
-              InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DriverBookingRequestsScreen(initialTabIndex: 0),
-                    ),
-                  );
-                  if (mounted) _loadData();
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('History', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF5B3AA8))),
-                      SizedBox(width: 2),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 11, color: Color(0xFF5B3AA8)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            itemCount: _requests.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final req = _requests[index];
-              final name = (req['passengerName'] ?? req['customerName'] ?? req['name'] ?? req['userName'] ?? 'Passenger').toString();
-              final initials = req['initials']?.toString() ?? (name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'P');
-              final from = (req['from'] ?? req['pickup'] ?? req['pickupLocation'] ?? req['origin'] ?? '').toString();
-              final to = (req['to'] ?? req['destination'] ?? req['destinationLocation'] ?? '').toString();
-              final route = req['route']?.toString() ?? (from.isNotEmpty && to.isNotEmpty ? '$from ➔ $to' : 'Pickup ➔ Destination');
-              final time = (req['time'] ?? req['departureTime'] ?? req['createdAt'] ?? 'Today').toString();
-              final seats = req['seats'] ?? req['seatsBooked'] ?? req['seatsCount'] ?? 1;
-              final rawPrice = (req['offeredPrice'] ?? req['fare'] ?? req['totalAmount'] ?? req['amount'] ?? 250).toString();
-              final price = rawPrice.startsWith('₹') ? rawPrice : '₹ $rawPrice';
-
-              return Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFEDE7F6), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: const Color(0xFFEDE7F6),
-                          child: Text(
-                            initials,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5B3AA8)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
-                              Text(time, style: const TextStyle(fontSize: 11.5, color: Color(0xFF757575))),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEDE7F6),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            price,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5B3AA8)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.route_rounded, size: 14, color: Color(0xFF5B3AA8)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(route, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF1E1B1E))),
-                        ),
-                        Text('$seats Seat(s)', style: const TextStyle(fontSize: 12, color: Color(0xFF757575))),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _showDeclineReasonDialog(req),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFE0E0E0)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            child: const Text('Decline', style: TextStyle(color: Color(0xFF757575), fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _openRequestAction(req),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF5B3AA8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            child: const Text('View & Accept', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _ChatDetailBottomSheet extends StatefulWidget {
@@ -791,7 +468,7 @@ class _ChatDetailBottomSheetState extends State<_ChatDetailBottomSheet> {
     } catch (_) {}
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
@@ -801,18 +478,40 @@ class _ChatDetailBottomSheetState extends State<_ChatDetailBottomSheet> {
     final period = now.period == DayPeriod.am ? 'AM' : 'PM';
     final timeStr = '$hour:$minute $period';
 
+    final message = <String, dynamic>{
+      'isMe': true,
+      'text': text,
+      'time': timeStr,
+    };
+
     setState(() {
-      _messages.add({
-        'isMe': true,
-        'text': text,
-        'time': timeStr,
-      });
+      _messages.add(message);
       _textController.clear();
     });
 
     final convId = widget.thread['conversationId']?.toString() ?? widget.thread['id']?.toString() ?? '';
+    bool sent = false;
     if (convId.isNotEmpty) {
-      DriverService.replyToConversation(conversationId: convId, text: text);
+      try {
+        final res = await DriverService.replyToConversation(conversationId: convId, text: text);
+        sent = res['success'] == true;
+      } catch (_) {}
+    }
+
+    // If the message did not reach the server, take it back out of the chat and
+    // restore the text so the driver can retry instead of believing it was sent.
+    if (!sent && mounted) {
+      setState(() {
+        _messages.remove(message);
+        _textController.text = text;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Message not sent. Please check your connection and try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
     }
 
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -943,7 +642,7 @@ class _ChatDetailBottomSheetState extends State<_ChatDetailBottomSheet> {
                                 msg['time'] ?? '',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: isMe ? Colors.white.withOpacity(0.7) : const Color(0xFF757575),
+                                  color: isMe ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF757575),
                                 ),
                               ),
                             ],

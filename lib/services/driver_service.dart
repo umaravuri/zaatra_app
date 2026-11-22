@@ -419,6 +419,12 @@ class DriverService {
 
   // 8. Driver Availability Switch API (Online / Offline Toggle)
   // Endpoints: PATCH /drivers/availability | POST /drivers/availability | POST /drivers/toggle-availability
+  static Future<void> markOnlineAtLogin([String? phone]) async {
+    try {
+      await switchAvailability(isOnline: true, phone: phone);
+    } catch (_) {}
+  }
+
   static Future<Map<String, dynamic>> switchAvailability({
     required bool isOnline,
     String? phone,

@@ -353,6 +353,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -438,7 +439,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                         'Intermediate Pickup Points',
                         style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.normal,
                             color: AppColors.textPrimary),
                       ),
                       if (_isLoadingRoute)
@@ -477,7 +478,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                             '+ Add Intermediate Pickup',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.normal,
                               color: AppColors.primary,
                             ),
                           ),
@@ -493,7 +494,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                     'Route Plan',
                     style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.normal,
                         color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 14),
@@ -515,7 +516,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
 
                   const SizedBox(height: 32),
 
-                  CustomButton(text: 'Next', onPressed: _handleNext),
+                  CustomButton(text: 'Next', onPressed: _handleNext, fontWeight: FontWeight.normal),
                 ],
               ),
             ),
@@ -546,7 +547,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                 'Stop ${index + 1}',
                 style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.normal,
                     color: AppColors.textSecondary),
               ),
               const Spacer(),
@@ -604,7 +605,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
               const Text('Price per stop:',
                   style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.normal,
                       color: AppColors.textSecondary)),
               const SizedBox(width: 10),
               Expanded(
@@ -614,7 +615,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.normal,
                       color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     isDense: true,
@@ -632,7 +633,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                     prefixText: '₹ ',
                     prefixStyle: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.normal,
                         color: AppColors.textPrimary),
                   ),
                 ),
@@ -670,7 +671,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
                   address,
                   style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.normal,
                       color: AppColors.textPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -695,7 +696,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
           child: Text(time,
               style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.normal,
                   color: AppColors.textPrimary)),
         ),
         const SizedBox(width: 10),
@@ -716,7 +717,7 @@ class _DriverPostRideScreenState extends State<DriverPostRideScreen> {
             station,
             style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
                 color: AppColors.textPrimary),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

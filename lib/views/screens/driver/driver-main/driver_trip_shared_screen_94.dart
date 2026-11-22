@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../services/driver_service.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
-import '../../../../services/native_share_service.dart';
+import '../../../../services/trip_card_share.dart';
+import '../../../widgets/trip_share_card.dart';
+import '../../../widgets/route_timeline_tile.dart';
+import '../../../../services/trip_stage.dart';
 import '../../../widgets/custom_button.dart';
 import 'driver_live_next_pickup_screen_95.dart';
 
@@ -56,33 +60,28 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
   Map<String, dynamic>? _heroCard;
   Map<String, dynamic>? _statusCard;
   Map<String, dynamic>? _totalPassenger;
-  Map<String, dynamic>? _actionButton;
   Map<String, dynamic>? _data;
   bool _isLoading = false;
-  final GlobalKey _shareCardKey = GlobalKey();
-  final GlobalKey _modalShareCardKey = GlobalKey();
-  String _driverRating = '4.8';
-  String _vehicleModel = 'Swift Dzire';
-  String _vehiclePlate = 'TS 09 AB 1234';
+  bool _isSharing = false;
+  // Unknown until the driver's profile / the API provides them: never invented,
+  // because they end up on the card that is shared with other people.
+  String _driverRating = '';
+  String _vehicleModel = '';
+  String _vehiclePlate = '';
 
-  static String _inferStage(Map<String, dynamic>? data) {
-    if (data == null) return 'before_ride';
-    final status = (data['status'] ?? data['tripStatus'] ?? data['rideStatus'] ?? '').toString().toLowerCase();
-    if (status.contains('complete') || status.contains('finish')) {
-      return 'summary';
-    }
-    if (status.contains('active') || status.contains('progress') || status.contains('started') || status.contains('on_the_way')) {
-      return 'during_ride';
-    }
-    return 'before_ride';
-  }
+  String get _vehicleLine =>
+      [_vehicleModel, _vehiclePlate].where((e) => e.trim().isNotEmpty).join(' · ');
+
+  /// Stage from the ride's real status when the caller did not pass one.
+  static String _inferStage(Map<String, dynamic>? data) =>
+      TripStage.fromData(data) ?? TripStage.beforeRide;
 
   @override
   void initState() {
     super.initState();
     _currentStage = widget.stage ?? _inferStage(widget.tripData);
     _data = widget.tripData ?? {};
-    _rideId = widget.rideId ?? _data?['rideId'] ?? _data?['id'] ?? 'RIDE-20124568';
+    _rideId = (widget.rideId ?? _data?['rideId'] ?? _data?['id'] ?? '').toString();
     _screenTitle = _getStageTitle(_currentStage);
     _badge = widget.statusBadge ?? _data?['statusBadge'] ?? (_currentStage == 'during_ride' ? 'On Trip' : 'Seats Open');
     
@@ -97,7 +96,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       final s = rawFuel.toString();
       _fuel = s.startsWith('₹') ? s : '₹$s';
     } else {
-      _fuel = '₹358';
+      _fuel = '';
     }
 
     // Dynamic driver name resolution
@@ -113,8 +112,8 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         _data?['driver']?['driverCode'] ??
         _data?['code'] ??
         _data?['tripDetails']?['code'] ??
-        '#1245';
-    _bookingId = widget.bookingSeatZaatraId ?? _data?['tripDetails']?['bookingSeatZaatraId'] ?? (_rideId ?? '20124568');
+        '';
+    _bookingId = widget.bookingSeatZaatraId ?? _data?['tripDetails']?['bookingSeatZaatraId'] ?? (_rideId ?? '');
     _nextPickup = widget.nextPickup ?? _data?['nextPickup'];
 
     // Dynamic timeline from routeTimeline or stops in tripData
@@ -144,7 +143,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       final savedPlate = prefs.getString('driver_vehicle_number') ??
           prefs.getString('vehicleNumber') ??
           '';
-      final savedRating = prefs.getString('driver_rating') ?? '4.8';
+      final savedRating = prefs.getString('driver_rating') ?? '';
       final savedCode = prefs.getString('driver_code') ?? prefs.getString('driverCode') ?? '';
 
       if (mounted) {
@@ -160,15 +159,15 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
           if (savedRating.isNotEmpty) _driverRating = savedRating;
 
           _heroCard ??= {
-            'category': 'Zatara Go',
-            'categoryTitle': 'Zatara Go',
-            'vehicleSpecs': '$_vehicleModel · $_vehiclePlate',
+            'category': 'Zaatra Go',
+            'categoryTitle': 'Zaatra Go',
+            'vehicleSpecs': _vehicleLine,
             'vehicleModel': _vehicleModel,
             'vehicleNumberPlate': _vehiclePlate,
             'driverName': _driver,
             'driverRole': 'Driver',
-            'driverRating': double.tryParse(_driverRating) ?? 4.8,
-            'driverRatingDisplay': 'Driver · ★ $_driverRating',
+            'driverRating': double.tryParse(_driverRating) ?? 0.0,
+            'driverRatingDisplay': _driverRating.isEmpty ? 'Driver' : 'Driver · ★ $_driverRating',
           };
         });
       }
@@ -176,7 +175,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
   }
 
   List<Map<String, dynamic>> _buildTimelineFromData(Map<String, dynamic>? data) {
-    if (data == null || data.isEmpty) return _getDefaultTimeline();
+    if (data == null || data.isEmpty) return <Map<String, dynamic>>[];
 
     if (data['routeTimeline'] is List && (data['routeTimeline'] as List).isNotEmpty) {
       return List<Map<String, dynamic>>.from(data['routeTimeline']);
@@ -184,7 +183,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
 
     final origin = data['pickupLocation'] ?? data['origin'] ?? data['pickup'] ?? data['from'] ?? '';
     final dest = data['destination'] ?? data['dropLocation'] ?? data['drop'] ?? data['to'] ?? '';
-    final startTime = data['time'] ?? data['departureTime'] ?? data['startTime'] ?? '09:00 AM';
+    final startTime = data['time'] ?? data['departureTime'] ?? data['startTime'] ?? '';
 
     if (origin.toString().isNotEmpty || dest.toString().isNotEmpty) {
       final stopsList = <Map<String, dynamic>>[];
@@ -192,7 +191,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         'index': 0,
         'time': startTime.toString().split(' ')[0],
         'timeRaw': startTime.toString(),
-        'location': origin.toString().isNotEmpty ? origin.toString() : 'Origin',
+        'location': origin.toString(),
         'isOrigin': true,
         'type': 'start',
         'icon': 'car',
@@ -221,7 +220,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         'index': stopsList.length,
         'time': destTime.toString().isNotEmpty ? destTime.toString().split(' ')[0] : '',
         'timeRaw': destTime.toString(),
-        'location': dest.toString().isNotEmpty ? dest.toString() : 'Destination',
+        'location': dest.toString(),
         'isDestination': true,
         'type': 'destination',
         'icon': 'destination',
@@ -229,7 +228,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       return stopsList;
     }
 
-    return _getDefaultTimeline();
+    return <Map<String, dynamic>>[];
   }
 
   List<Map<String, dynamic>> _buildSeatsFromData(Map<String, dynamic>? data, String stage) {
@@ -270,7 +269,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       }
       return seats;
     }
-    return _getDefaultSeats(stage);
+    return <Map<String, dynamic>>[];
   }
 
   String _getStageTitle(String stage) {
@@ -285,149 +284,24 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _getDefaultTimeline() {
-    return [
-      {'index': 0, 'time': '9 : 00', 'timeRaw': '09:00 AM', 'location': 'Madhapur', 'isOrigin': true, 'type': 'start', 'icon': 'car'},
-      {'index': 1, 'time': '10 : 00', 'timeRaw': '10:00 AM', 'location': 'Ameerpet', 'isOrigin': false, 'type': 'intermediate', 'icon': 'stop'},
-      {'index': 2, 'time': '12 : 00', 'timeRaw': '12:00 PM', 'location': 'Begumpet', 'isOrigin': false, 'type': 'intermediate', 'icon': 'stop'},
-      {'index': 3, 'time': '01 : 00', 'timeRaw': '01:00 PM', 'location': 'Secundrabad', 'isDestination': true, 'type': 'destination', 'icon': 'destination'},
-    ];
-  }
-
-  List<Map<String, dynamic>> _getDefaultSeats(String stage) {
-    if (stage == 'during_ride') {
-      return [
-        {
-          'seatNumber': 'S-1',
-          'label': 'S-1 Booked',
-          'displayLabel': 'S-1 In Car',
-          'status': 'completed',
-          'boardingState': 'COMPLETED',
-          'isBooked': true,
-          'isBoarded': true,
-          'badge': 'In Car',
-          'stepStatus': 'Customer entered car (Seat completed)',
-          'passengerName': 'Ananya Sharma',
-          'pickupLocation': 'Madhapur',
-          'icon': 'user',
-          'color': '#E9D8FD',
-        },
-        {
-          'seatNumber': 'S-2',
-          'label': 'S-2 Booked',
-          'displayLabel': 'S-2 Next Pickup',
-          'status': 'next_pickup',
-          'boardingState': 'NEXT_PICKUP',
-          'isNextPickup': true,
-          'isBooked': true,
-          'isBoarded': false,
-          'badge': 'Next Pickup',
-          'stepStatus': 'Going to pick up next: Suresh Kumar',
-          'passengerName': 'Suresh Kumar',
-          'passengerPhone': '+919876543211',
-          'pickupLocation': 'Ameerpet',
-          'boardingPin': '4829',
-          'icon': 'user',
-          'color': '#E9D8FD',
-        },
-        {
-          'seatNumber': 'S-3',
-          'label': 'S-3 Booked',
-          'displayLabel': 'S-3 Waiting',
-          'status': 'waiting',
-          'boardingState': 'WAITING',
-          'isNextPickup': false,
-          'isBooked': true,
-          'isBoarded': false,
-          'badge': 'Waiting',
-          'stepStatus': 'Waiting for cab',
-          'passengerName': 'Ramesh Reddy',
-          'passengerPhone': '',
-          'pickupLocation': 'Begumpet',
-          'icon': 'user',
-          'color': '#E9D8FD',
-        },
-        {
-          'seatNumber': 'S-4',
-          'label': 'Available',
-          'status': 'available',
-          'isBooked': false,
-          'isBoarded': false,
-          'badge': 'Available',
-          'passengerStatus': 'Empty',
-          'icon': 'empty_seat',
-          'color': '#D1E7DD',
-        },
-      ];
-    }
-
-    // Default Before Ride
-    return [
-      {
-        'seatNumber': 'S-1',
-        'label': 'S-1 Booked',
-        'status': 'booked',
-        'isBooked': true,
-        'isBoarded': false,
-        'badge': 'Booked',
-        'passengerStatus': 'Waiting for cab',
-        'passengerName': 'Ananya Sharma',
-        'icon': 'user',
-        'color': '#E9D8FD',
-      },
-      {
-        'seatNumber': 'S-2',
-        'label': 'S-2 Booked',
-        'status': 'booked',
-        'isBooked': true,
-        'isBoarded': false,
-        'badge': 'Booked',
-        'passengerStatus': 'Waiting for cab',
-        'passengerName': 'Suresh Kumar',
-        'icon': 'user',
-        'color': '#E9D8FD',
-      },
-      {
-        'seatNumber': 'S-3',
-        'label': 'S-3 Booked',
-        'status': 'booked',
-        'isBooked': true,
-        'isBoarded': false,
-        'badge': 'Booked',
-        'passengerStatus': 'Waiting for cab',
-        'passengerName': 'Ramesh Reddy',
-        'icon': 'user',
-        'color': '#E9D8FD',
-      },
-      {
-        'seatNumber': 'S-4',
-        'label': 'Available',
-        'status': 'available',
-        'isBooked': false,
-        'isBoarded': false,
-        'badge': 'Available',
-        'passengerStatus': 'Empty',
-        'passengerName': null,
-        'icon': 'empty_seat',
-        'color': '#D1E7DD',
-      },
-    ];
-  }
-
   Future<void> _loadTripCard() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
-      final rId = _rideId ?? 'RIDE-20124568';
-      final res = await RideService.getTripSharedMaster(rideId: rId, stage: _currentStage);
+      final rId = _rideId ?? '';
+      final Map<String, dynamic> res = rId.isEmpty
+          ? <String, dynamic>{'success': false}
+          : await RideService.getTripSharedMaster(rideId: rId, stage: _currentStage);
 
       if (mounted && res['success'] == true) {
         setState(() {
-          _screenTitle = res['screenTitle'] ?? _getStageTitle(_currentStage);
-          if (widget.stage == null && res['stage'] != null) {
-            _currentStage = res['stage'].toString();
+          // The ride's real status decides the card when the caller gave no stage.
+          final apiStage = TripStage.fromData(res);
+          if (widget.stage == null && apiStage != null) {
+            _currentStage = apiStage;
           }
+          _screenTitle = (res['screenTitle'] ?? _getStageTitle(_currentStage)).toString();
           if (res['statusBadge'] != null) {
             _badge = res['statusBadge'].toString();
           }
@@ -452,9 +326,6 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
           if (res['totalPassenger'] is Map) {
             _totalPassenger = Map<String, dynamic>.from(res['totalPassenger']);
           }
-          if (res['actionButton'] is Map) {
-            _actionButton = Map<String, dynamic>.from(res['actionButton']);
-          }
           if (res['tripDetails'] is Map) {
             final td = res['tripDetails'];
             if (td['driverName'] != null) _driver = td['driverName'].toString();
@@ -474,7 +345,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         });
       } else {
         // Fallback: Query live ride status from Module 5 API if rideId is available
-        if (rId.isNotEmpty && rId != 'RIDE-20124568') {
+        if (rId.isNotEmpty) {
           try {
             final liveRes = await RideService.getLiveRideStatus(rId);
             if (liveRes['success'] == true && liveRes['data'] != null && mounted) {
@@ -519,80 +390,26 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     if (!mounted) return;
     setState(() {
       _screenTitle = _getStageTitle(stage);
-      // Preserve existing dynamic timeline if already set
+      // Only real data: nothing is invented when the ride gave us none.
       if (_timeline.isEmpty) {
         _timeline = _buildTimelineFromData(_data);
       }
-      // Preserve existing dynamic seats if already set
       if (_seats.isEmpty) {
         _seats = _buildSeatsFromData(_data, stage);
-      }
-
-      if (stage == 'during_ride') {
-        _pickupProgression = {
-          'completedCount': 1,
-          'totalBooked': 3,
-          'progressText': 'Customer get in so seat one is already completed. Next we are going to second person: Suresh Kumar at Ameerpet.',
-          'nextPickup': {
-            'pickupIndex': 2,
-            'seatNumber': 'S-2',
-            'passengerName': 'Suresh Kumar',
-            'phone': '+919876543211',
-            'location': 'Ameerpet',
-            'time': '10 : 00',
-            'boardingPin': '4829',
-            'routeSegment': 'Ameerpet - Begumpet',
-            'eta': '10 mins',
-            'distanceRemaining': '4.2 KM',
-          },
-        };
-        _nextPickup = _pickupProgression!['nextPickup'];
-      } else if (stage == 'summary') {
-        final arrival = _data?['arrivalTime'] ?? _data?['time'] ?? '10:20 PM';
-        final bookedCount = _seats.where((s) => s['isBooked'] == true).length;
-        _heroCard ??= {
-          'category': 'Zatara Go',
-          'categoryTitle': 'Zatara Go',
-          'vehicleSpecs': '$_vehicleModel · $_vehiclePlate',
-          'vehicleModel': _vehicleModel,
-          'vehicleNumberPlate': _vehiclePlate,
-          'carImage': 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png',
-          'driverName': _driver,
-          'driverRole': 'Driver',
-          'driverRating': double.tryParse(_driverRating) ?? 4.8,
-          'driverRatingDisplay': 'Driver · ★ $_driverRating',
-        };
-        _statusCard ??= {
-          'estimateArrival': {'title': 'Estimate arrival', 'time': arrival.toString()},
-          'tripStatus': {'title': 'Trip Status', 'value': 'On The Way', 'color': '#16A34A', 'statusCode': 'ON_THE_WAY'},
-        };
-        _totalPassenger ??= {
-          'title': 'Total Passenger',
-          'label': 'Co-travelers',
-          'count': bookedCount > 0 ? bookedCount : 3,
-          'icon': 'co_travelers',
-        };
-        _actionButton = {
-          'text': 'Share Trip Again',
-          'action': 'share_again',
-          'endpoint': '/api/rides/RIDE-20124568/share-again',
-          'shareUrl': 'https://zaatra.app/track/RIDE-20124568',
-          'shareText': 'Track my Zaatra ride from Madhapur to Secundrabad with Rahul Kumar. Status: On The Way. ETA: 10:20 PM. Live link: https://zaatra.app/track/RIDE-20124568',
-        };
       }
     });
   }
 
   Future<void> _handleShareTripAgain() async {
-    final rId = _rideId ?? 'RIDE-20124568';
+    final rId = _rideId ?? '';
     setState(() => _isLoading = true);
-    final res = await RideService.shareTripAgain(rideId: rId);
+    final Map<String, dynamic> res =
+        rId.isEmpty ? <String, dynamic>{} : await RideService.shareTripAgain(rideId: rId);
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    final shareUrl = res['shareUrl'] ?? 'https://zaatra.app/track/$rId';
-    final shareText = res['shareText'] ??
-        'Track my Zaatra ride from Madhapur to Secundrabad with Rahul Kumar. Status: On The Way. ETA: 10:20 PM. Live link: $shareUrl';
+    final shareUrl = (res['shareUrl'] ?? _shareUrl()).toString();
+    final shareText = (res['shareText'] ?? _buildShareText(_buildShareCardData(), shareUrl)).toString();
 
     showDialog(
       context: context,
@@ -666,11 +483,34 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     );
   }
 
-  Future<void> _handleCaptureAndShare() async {
-    final rId = _rideId ?? 'RIDE-20124568';
-    final shareUrl = 'https://zaatra.app/track/$rId';
-    final shareText = 'Track my Zaatra ride with $_driver! Live link: $shareUrl';
+  String _shareUrl() => TripCardShare.urlFor(_rideId);
 
+  /// Builds the data for the purple trip card from what this screen already holds.
+  /// Anything unknown is left empty so the card omits it.
+  TripShareCardData _buildShareCardData() {
+    var eta = (_statusCard?['estimateArrival']?['time'] ?? _data?['arrivalTime'] ?? '').toString();
+    final status = TripCardShare.statusForStage(_currentStage);
+    return TripCardShare.buildData(
+      driverName: _driver,
+      vehicleLine: _vehicleLine,
+      rating: _driverRating,
+      timeline: _timeline,
+      seats: _seats,
+      estimatedArrival: eta,
+      statusLabel: status.label,
+      statusColor: status.color,
+    );
+  }
+
+  String _buildShareText(TripShareCardData d, String url) => TripCardShare.buildText(d, url);
+
+  /// Shares the purple "Trip Shared" card as an image (not the on-screen page).
+  Future<void> _handleCaptureAndShare() async {
+    if (_isSharing) return;
+    _isSharing = true;
+
+    final data = _buildShareCardData();
+    final shareUrl = _shareUrl();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Preparing trip card image...'),
@@ -678,52 +518,22 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       ),
     );
 
-    // Wait a brief frame for layout rendering
-    await Future.delayed(const Duration(milliseconds: 250));
-
-    final targetKey = _shareCardKey.currentContext != null ? _shareCardKey : _modalShareCardKey;
-
-    final res = await NativeShareService.captureAndShareWidget(
-      key: targetKey,
-      text: shareText,
-      fallbackShareUrl: shareUrl,
-    );
+    Map<String, dynamic> res;
+    try {
+      res = await TripCardShare.captureAndShare(
+        context,
+        data: data,
+        text: _buildShareText(data, shareUrl),
+        fallbackUrl: shareUrl,
+      );
+    } finally {
+      _isSharing = false;
+    }
 
     if (!mounted) return;
-
     if (res['success'] != true || res['isWeb'] == true) {
       _handleShareTripAgain();
     }
-  }
-
-  Future<void> _handleCaptureAndShareScreen96() => _handleCaptureAndShare();
-
-  void _showTripSharedModalSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: SingleChildScrollView(
-          child: RepaintBoundary(
-            key: _modalShareCardKey,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: _buildSummaryContent(isModal: true),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -732,6 +542,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -784,7 +595,6 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                       child: RepaintBoundary(
-                        key: _shareCardKey,
                         child: Container(
                           padding: const EdgeInsets.all(20.0),
                           decoration: BoxDecoration(
@@ -822,6 +632,82 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     );
   }
 
+  /// Route timeline rows built from real stops only (stops without a place name
+  /// are skipped). Shows a short note when the route is not known.
+  List<Widget> _timelineSection() {
+    final stops = _timeline
+        .where((e) => (e['location'] ?? e['station'] ?? e['address'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+    if (stops.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'Route details are not available yet.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ),
+      ];
+    }
+    return [
+      for (var i = 0; i < stops.length; i++)
+        _buildWaypointTile(
+          time: (stops[i]['time'] ?? stops[i]['timeRaw'] ?? '').toString(),
+          station: (stops[i]['location'] ?? stops[i]['station'] ?? stops[i]['address']).toString(),
+          isStart: i == 0,
+          isLast: i == stops.length - 1,
+        ),
+    ];
+  }
+
+  String get _driverInfoText {
+    final name = _driver == 'Driver' ? '' : _driver;
+    final parts = <String>[
+      if (name.isNotEmpty) name,
+      if (_code.trim().isNotEmpty) 'driver code $_code',
+    ];
+    return parts.join(' - ');
+  }
+
+  /// "<date>, <time>" from the ride data, or '' when unknown.
+  String get _scheduleText {
+    String pick(List<String> keys) {
+      for (final k in keys) {
+        final v = (_data?[k] ?? '').toString().trim();
+        if (v.isNotEmpty) return v;
+      }
+      return '';
+    }
+
+    final date = pick(['departureDate', 'date', 'scheduledDate', 'departs']);
+    final time = pick(['departureTime', 'time', 'startTime']);
+    return [date, time].where((e) => e.isNotEmpty).join(', ');
+  }
+
+  Future<void> _callPhone(String? raw) async {
+    final number = (raw ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
+    if (number.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number is not available.')),
+      );
+      return;
+    }
+    try {
+      final ok = await launchUrl(Uri(scheme: 'tel', path: number), mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // ==========================================
   // STAGE 1: BEFORE RIDE (Screenshot 1)
   // ==========================================
@@ -848,18 +734,11 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         const SizedBox(height: 24),
 
         // Route Timeline
-        ...List.generate(_timeline.length, (i) {
-          final item = _timeline[i];
-          final isStart = item['isStart'] == true || item['type'] == 'start' || item['isOrigin'] == true || i == 0;
-          final isLast = item['isLast'] == true || item['type'] == 'destination' || item['isDestination'] == true || i == _timeline.length - 1;
-          final time = item['time'] ?? item['timeRaw'] ?? '09:00 AM';
-          final station = item['location'] ?? item['station'] ?? item['address'] ?? '';
-
-          return _buildWaypointTile(time: time, station: station, isStart: isStart, isLast: isLast);
-        }),
+        ..._timelineSection(),
 
         const SizedBox(height: 24),
 
+        if (_seats.isNotEmpty) ...[
         // Seats Available Section
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -940,28 +819,36 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
 
         const SizedBox(height: 24),
 
-        // Trip Info Rows
-        _buildInfoRow(
-          icon: Icons.person_outline_rounded,
-          iconBg: const Color(0xFFF3EDF7),
-          iconColor: AppColors.primary,
-          text: '$_driver - driver code $_code',
-        ),
-        const SizedBox(height: 16),
-        _buildInfoRow(
-          icon: Icons.access_time_rounded,
-          iconBg: const Color(0xFFF3EDF7),
-          iconColor: AppColors.primary,
-          text: 'Date & Time : 08-08-26, 10:26 PM',
-        ),
-        const SizedBox(height: 16),
-        _buildInfoRow(
-          icon: Icons.directions_car_outlined,
-          iconBg: const Color(0xFFF3EDF7),
-          iconColor: AppColors.primary,
-          text: 'White Swift Dzire · TS 09 AB 1234',
-        ),
-        const SizedBox(height: 16),
+        ],
+
+        // Trip info rows: each one only when its value is known
+        if (_driverInfoText.isNotEmpty) ...[
+          _buildInfoRow(
+            icon: Icons.person_outline_rounded,
+            iconBg: const Color(0xFFF3EDF7),
+            iconColor: AppColors.primary,
+            text: _driverInfoText,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (_scheduleText.isNotEmpty) ...[
+          _buildInfoRow(
+            icon: Icons.access_time_rounded,
+            iconBg: const Color(0xFFF3EDF7),
+            iconColor: AppColors.primary,
+            text: 'Date & Time : $_scheduleText',
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (_vehicleLine.isNotEmpty) ...[
+          _buildInfoRow(
+            icon: Icons.directions_car_outlined,
+            iconBg: const Color(0xFFF3EDF7),
+            iconColor: AppColors.primary,
+            text: _vehicleLine,
+          ),
+          const SizedBox(height: 16),
+        ],
       ],
     );
   }
@@ -970,76 +857,83 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
   // STAGE 2: DURING RIDE (Screenshot 2)
   // ==========================================
   Widget _buildDuringRideContent() {
-    final progText = _pickupProgression?['progressText'] ??
-        'Customer get in so seat one is already completed. Next we are going to second person: Suresh Kumar at Ameerpet.';
-    final np = _nextPickup ?? _pickupProgression?['nextPickup'] ?? {};
+    // Only a real next pickup is shown; nothing is invented when there is none.
+    final Map<String, dynamic> np = Map<String, dynamic>.from(
+        (_nextPickup ?? _pickupProgression?['nextPickup'] ?? const <String, dynamic>{}) as Map);
+    final npName = (np['passengerName'] ?? '').toString();
+    final npLocation = (np['location'] ?? '').toString();
+    final npSeat = (np['seatNumber'] ?? '').toString();
+    final npPhone = (np['phone'] ?? np['passengerPhone'] ?? np['mobile'] ?? '').toString();
+    final hasNextPickup = npName.isNotEmpty || npLocation.isNotEmpty;
+    final npDetail = [
+      if (npLocation.isNotEmpty) npLocation,
+      if ((np['eta'] ?? '').toString().isNotEmpty) 'ETA ${np['eta']}',
+      if ((np['distanceRemaining'] ?? '').toString().isNotEmpty) '(${np['distanceRemaining']})',
+    ].join(' · ');
+    final progText = (_pickupProgression?['progressText'] ??
+            (hasNextPickup
+                ? 'Next pickup: ${npName.isNotEmpty ? npName : 'passenger'}${npLocation.isNotEmpty ? ' at $npLocation' : ''}.'
+                : ''))
+        .toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Route Timeline
-        ...List.generate(_timeline.length, (i) {
-          final item = _timeline[i];
-          final isStart = item['isStart'] == true || item['type'] == 'start' || item['isOrigin'] == true || i == 0;
-          final isLast = item['isLast'] == true || item['type'] == 'destination' || item['isDestination'] == true || i == _timeline.length - 1;
-          final time = item['time'] ?? '09:00 AM';
-          final station = item['location'] ?? item['station'] ?? '';
-
-          return _buildWaypointTile(time: time, station: station, isStart: isStart, isLast: isLast);
-        }),
+        ..._timelineSection(),
 
         const SizedBox(height: 20),
 
-        // Progression Banner Text
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF3EDF7),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE1D5EA)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  progText,
-                  style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        if (progText.isNotEmpty) ...[
+          // Progression Banner Text
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3EDF7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE1D5EA)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    progText,
+                    style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 20),
+        ],
 
-        const SizedBox(height: 20),
-
-        // Next Pickup Highlight Card with PIN 4829
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.primary, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
+        if (hasNextPickup) ...[
+          // Next Pickup Highlight Card (the passenger's boarding PIN is intentionally not shown here)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.primary, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (npSeat.isNotEmpty) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -1047,72 +941,62 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          np['seatNumber'] ?? 'S-2',
+                          npSeat,
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Next Pickup',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-                      ),
                     ],
-                  ),
-                  // Boarding PIN Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(8),
+                    const Text(
+                      'Next Pickup',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
                     ),
-                    child: Text(
-                      'PIN: ${np['boardingPin'] ?? '4829'}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Color(0xFFF3EDF7),
+                      child: Icon(Icons.person, color: AppColors.primary, size: 20),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Color(0xFFF3EDF7),
-                    child: Icon(Icons.person, color: AppColors.primary, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          np['passengerName'] ?? 'Suresh Kumar',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${np['location'] ?? 'Ameerpet'} · ETA ${np['eta'] ?? '10 mins'} (${np['distanceRemaining'] ?? '4.2 KM'})',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                        ),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (npName.isNotEmpty)
+                            Text(
+                              npName,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                          if (npDetail.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              npDetail,
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.phone_in_talk_rounded, color: AppColors.primary),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Calling ${np['passengerName']} (${np['phone'] ?? '+919876543211'})...')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
+                    IconButton(
+                      icon: Icon(
+                        Icons.phone_in_talk_rounded,
+                        color: npPhone.isEmpty ? Colors.grey.shade400 : AppColors.primary,
+                      ),
+                      onPressed: () => _callPhone(npPhone),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 24),
+        ],
 
-        const SizedBox(height: 24),
-
+        if (_seats.isNotEmpty) ...[
         // Seats Available Section (Progressive Boarding States)
         const Text(
           'Seats Status',
@@ -1211,13 +1095,17 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
 
         const SizedBox(height: 24),
 
-        // Trip Info
-        _buildInfoRow(
-          icon: Icons.person_outline_rounded,
-          iconBg: const Color(0xFFF3EDF7),
-          iconColor: AppColors.primary,
-          text: '$_driver - driver code $_code',
-        ),
+        ],
+
+        // Trip Info (only when known)
+        if (_driverInfoText.isNotEmpty) ...[
+          _buildInfoRow(
+            icon: Icons.person_outline_rounded,
+            iconBg: const Color(0xFFF3EDF7),
+            iconColor: AppColors.primary,
+            text: _driverInfoText,
+          ),
+        ],
 
         const SizedBox(height: 30),
 
@@ -1237,7 +1125,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
                   driverCode: _code,
                   bookingSeatZaatraId: _bookingId,
                   nextPickup: _nextPickup,
-                  nextPickupLocation: _nextPickup?['location'] ?? 'Ameerpet',
+                  nextPickupLocation: _nextPickup?['location']?.toString(),
                   tripData: _data,
                 ),
               ),
@@ -1254,16 +1142,16 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
   // ==========================================
   Widget _buildSummaryContent({bool isModal = false}) {
     final hero = _heroCard ?? {
-      'category': 'Zatara Go',
-      'vehicleSpecs': '$_vehicleModel · $_vehiclePlate',
+      'category': 'Zaatra Go',
+      'vehicleSpecs': _vehicleLine,
       'driverName': _driver,
-      'driverRatingDisplay': 'Driver · ★ $_driverRating',
+      'driverRatingDisplay': _driverRating.isEmpty ? 'Driver' : 'Driver · ★ $_driverRating',
     };
     final sc = _statusCard ?? {};
-    final etaTime = sc['estimateArrival']?['time'] ?? (_data?['arrivalTime'] ?? _data?['time'] ?? '10:20 PM');
+    final etaTime = (sc['estimateArrival']?['time'] ?? _data?['arrivalTime'] ?? '').toString();
     final tripStatus = sc['tripStatus']?['value'] ?? (_currentStage == 'during_ride' ? 'On The Way' : (_currentStage == 'summary' ? 'Completed' : 'Seats Open'));
     final bookedCount = _seats.where((s) => s['isBooked'] == true).length;
-    final coTravelers = _totalPassenger?['count'] ?? (bookedCount > 0 ? bookedCount : 3);
+    final coTravelers = _totalPassenger?['count'] ?? bookedCount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1320,17 +1208,17 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hero['category'] ?? 'Zatara Go',
+                    hero['category'] ?? 'Zaatra Go',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    hero['vehicleSpecs'] ?? 'White Swift Dzire · TS 09 AB 1234',
+                    hero['vehicleSpecs'] ?? _vehicleLine,
                     style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    hero['driverName'] ?? 'Rahul Kumar',
+                    hero['driverName'] ?? _driver,
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 3),
@@ -1338,8 +1226,9 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
                     text: TextSpan(
                       style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                       children: [
-                        TextSpan(text: 'Driver · '),
-                        TextSpan(text: '★ 4.8', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+                        const TextSpan(text: 'Driver'),
+                        if (_driverRating.isNotEmpty)
+                          TextSpan(text: ' · ★ $_driverRating', style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -1352,15 +1241,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
         const SizedBox(height: 24),
 
         // 2. Route Timeline (Matching 96.png)
-        ...List.generate(_timeline.length, (i) {
-          final item = _timeline[i];
-          final isStart = item['isStart'] == true || item['type'] == 'start' || item['isOrigin'] == true || i == 0;
-          final isLast = item['isLast'] == true || item['type'] == 'destination' || item['isDestination'] == true || i == _timeline.length - 1;
-          final time = item['time'] ?? '09:00';
-          final station = item['location'] ?? item['station'] ?? '';
-
-          return _buildWaypointTile(time: time, station: station, isStart: isStart, isLast: isLast);
-        }),
+        ..._timelineSection(),
 
         const SizedBox(height: 20),
 
@@ -1375,14 +1256,15 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Estimate arrival', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-                  const SizedBox(height: 4),
-                  Text(etaTime, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                ],
-              ),
+              if (etaTime.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Estimate arrival', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                    const SizedBox(height: 4),
+                    Text(etaTime, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  ],
+                ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
@@ -1476,57 +1358,7 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     required bool isStart,
     required bool isLast,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 58,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                time,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              isStart
-                  ? const Icon(Icons.directions_car_rounded, color: Color(0xFFE53935), size: 18)
-                  : Container(
-                      width: 10,
-                      height: 10,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFD1D5DB),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: const Color(0xFFE5E7EB),
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 20.0),
-              child: Text(
-                station,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return RouteTimelineTile(time: time, station: station, isStart: isStart, isLast: isLast);
   }
 
   Widget _buildSeatBox({

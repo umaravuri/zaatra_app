@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/navigation/app_navigator.dart';
-import '../customer/customer-stay/customer_home_screen_38.dart';
+import '../host_updated/host_dashboard_screen.dart';
 
 class BecomeHostScreen extends StatelessWidget {
   final String? phoneNumber;
@@ -40,7 +40,7 @@ class BecomeHostScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3EDF7),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 3),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 3),
                 ),
                 child: const Icon(
                   Icons.home_work_rounded,
@@ -124,8 +124,8 @@ class BecomeHostScreen extends StatelessWidget {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                        settings: const RouteSettings(name: AppRoutes.customerHome),
-                        builder: (context) => const CustomerHomeScreen(),
+                        settings: const RouteSettings(name: AppRoutes.hostHome),
+                        builder: (context) => const HostDashboardScreen(),
                       ),
                       (route) => false,
                     );
@@ -165,7 +165,7 @@ class BecomeHostScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 20, color: AppColors.primary),

@@ -43,6 +43,11 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
   bool _isCancelling = false;
   bool _hasResponded = false;
 
+  /// How long we keep polling before asking the passenger what to do.
+  static const Duration _maxWait = Duration(minutes: 15);
+  DateTime? _pollStartedAt;
+  bool _timeoutDialogOpen = false;
+
   RideBookingSession get _session => widget.session ?? const RideBookingSession();
   String get _bookingId => widget.bookingId ?? _session.bookingId;
 
@@ -71,6 +76,9 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
   }
 
   void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollStartedAt = DateTime.now();
+
     // Check immediately on launch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_hasResponded && !_isCancelling) {
@@ -81,6 +89,14 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
     // Then poll periodically every 3 seconds
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (!mounted || _hasResponded || _isCancelling) return;
+
+      final startedAt = _pollStartedAt;
+      if (startedAt != null && DateTime.now().difference(startedAt) >= _maxWait) {
+        _pollingTimer?.cancel();
+        _showWaitingTimedOutDialog();
+        return;
+      }
+
       await _checkBookingStatus();
     });
   }
@@ -133,6 +149,46 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
     } catch (_) {
       // Ignore network hiccup during polling
     }
+  }
+
+  /// The driver has not answered for a long time: stop polling and let the passenger decide.
+  void _showWaitingTimedOutDialog() {
+    if (_timeoutDialogOpen || !mounted) return;
+    _timeoutDialogOpen = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Still waiting for the driver', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+          'The driver has not responded yet. You can keep waiting or cancel this request.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _timeoutDialogOpen = false;
+              _handleCancelRequest();
+            },
+            child: const Text('Cancel request', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _timeoutDialogOpen = false;
+              if (mounted) _startPolling();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Keep waiting', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDriverDeclinedDialog(String reason) {
@@ -220,15 +276,38 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
 
     if (confirmed != true) return;
 
+    if (_isCancelling) return;
     setState(() => _isCancelling = true);
     _pollingTimer?.cancel();
 
     if (_bookingId.isNotEmpty) {
-      await RideService.cancelBooking(_bookingId, reason: 'Passenger cancelled pending request');
-    }
+      Map<String, dynamic> res;
+      try {
+        res = await RideService.cancelBooking(_bookingId, reason: 'Passenger cancelled pending request');
+      } catch (_) {
+        res = {'success': false};
+      }
 
-    if (!mounted) return;
-    setState(() => _isCancelling = false);
+      if (!mounted) return;
+      setState(() => _isCancelling = false);
+
+      if (res['success'] != true) {
+        // The booking is still pending on the server: say so and keep waiting.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res['message']?.toString() ?? 'Could not cancel your request. Please try again.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        _startPolling();
+        return;
+      }
+    } else {
+      if (!mounted) return;
+      setState(() => _isCancelling = false);
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -248,10 +327,23 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
         ? session.totalAmount
         : (driver.pricePerSeat * (session.seatsCount > 0 ? session.seatsCount : 1) + session.detourCharge);
 
-    return Scaffold(
+    // System/gesture back must not silently leave a pending booking behind:
+    // route it through the same cancel flow as the app bar back arrow.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_hasResponded) {
+          Navigator.pop(context);
+          return;
+        }
+        _handleCancelRequest();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => _handleCancelRequest(),
         ),
@@ -381,7 +473,7 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      driver.name.isNotEmpty ? driver.name : 'Verified Driver',
+                                      driver.name.isNotEmpty ? driver.name : 'Driver',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -402,7 +494,7 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
                                         const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
                                         const SizedBox(width: 4),
                                         Text(
-                                          driver.rating > 0 ? driver.rating.toStringAsFixed(1) : '4.9',
+                                          driver.rating > 0 ? driver.rating.toStringAsFixed(1) : 'New',
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.bold,
@@ -573,6 +665,7 @@ class _RideAwaitingConfirmationScreenState extends State<RideAwaitingConfirmatio
             ),
           ],
         ),
+      ),
       ),
     );
   }

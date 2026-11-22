@@ -71,10 +71,15 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
 
   late int _price;
   late int _seats;
+  int _bookedSeats = 0;
   late int _luggage;
 
   late DateTime _departureDate;
   late TimeOfDay _departureTime;
+
+  // Departure as loaded from the ride, so save only rejects a past time the
+  // driver newly chose (an untouched, already-departed time is left alone).
+  late DateTime _originalDeparture;
 
   // Preferences
   bool _autoApproval = true;
@@ -102,17 +107,18 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
     final ride = widget.rideData ?? {};
 
     // Price
-    final rawPrice = ride['price'] ?? ride['pricePerSeat'] ?? 580;
-    _price = int.tryParse(rawPrice.toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 580;
-    _priceController = TextEditingController(text: '$_price');
+    final rawPrice = ride['price'] ?? ride['pricePerSeat'] ?? 0;
+    _price = int.tryParse(rawPrice.toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    _priceController = TextEditingController(text: _price > 0 ? '$_price' : '');
 
     // Seats & Luggage
-    _seats = int.tryParse((ride['seats'] ?? 4).toString()) ?? 4;
+    _seats = int.tryParse((ride['seats'] ?? 1).toString()) ?? 1;
+    _bookedSeats = int.tryParse((ride['booked'] ?? ride['bookedSeats'] ?? ride['seatsBooked'] ?? 0).toString()) ?? 0;
     _luggage = int.tryParse((ride['maxLuggagePerPassenger'] ?? ride['luggageCount'] ?? 0).toString()) ?? 0;
 
     // Route / Address controllers
-    final from = (ride['from'] ?? ride['pickupLocation'] ?? 'Mangalagiri Road, Vijayawada').toString();
-    final to = (ride['to'] ?? ride['destinationLocation'] ?? 'Tirupati').toString();
+    final from = (ride['from'] ?? ride['pickupLocation'] ?? '').toString();
+    final to = (ride['to'] ?? ride['destinationLocation'] ?? '').toString();
 
     _pickupController = TextEditingController(text: from);
     _destinationController = TextEditingController(text: to);
@@ -171,9 +177,9 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
 
     // Seed route result if available in rideData
     final initialPoly = (ride['overviewPolyline'] ?? ride['polyline'] ?? '').toString();
-    final initialDur = (ride['duration'] ?? '5h 30m').toString();
-    final initialDist = (ride['distance'] ?? '330 KM').toString();
-    final initialRouteName = (ride['routeName'] ?? 'Main Route').toString();
+    final initialDur = (ride['duration'] ?? '').toString();
+    final initialDist = (ride['distance'] ?? '').toString();
+    final initialRouteName = (ride['routeName'] ?? 'Route').toString();
 
     if (initialPoly.isNotEmpty) {
       final initialCandidate = CandidateRoute(
@@ -197,7 +203,7 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
         endAddress: to,
         candidateRoutes: [initialCandidate],
       );
-      _routes = ['$initialDur - $initialDist ($initialRouteName)'];
+      _routes = ['$initialDur - initialRouteName)'];
     }
 
     _fetchDirections();
@@ -207,6 +213,13 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
 
     // Parse Departure Time
     _departureTime = _parseRideTimeOfDay(ride['departureTime']?.toString() ?? '09:00 AM');
+    _originalDeparture = DateTime(
+      _departureDate.year,
+      _departureDate.month,
+      _departureDate.day,
+      _departureTime.hour,
+      _departureTime.minute,
+    );
 
     // Initial Preferences from ride data
     if (ride['preferences'] is Map) {
@@ -392,7 +405,7 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final minute = time.minute.toString().padLeft(2, '0');
-    return '${hour.toString().padLeft(2, '0')}:$minute $period';
+    return 'minute $period';
   }
 
   @override
@@ -604,7 +617,7 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
           final isFastest = cr.routeIndex == 0;
           final labelTag = isFastest ? 'Fastest' : 'Alternative';
           final summaryInfo = cr.summary.isNotEmpty ? 'via ${cr.summary}' : '';
-          return '${cr.durationText} - ${cr.distanceText} ($labelTag $summaryInfo)'.trim();
+          return '${cr.durationText} - labelTag $summaryInfo)'.trim();
         }).toList();
 
         final double distanceKm = candidateRoutes.first.distanceMeters > 0
@@ -641,7 +654,7 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
       );
 
       if (mounted && res['success'] == true) {
-        final dist = res['distance']?.toString() ?? '330 KM';
+        final dist = res['distance']?.toString() ?? '';
         final dur = res['duration']?.toString() ?? '4 hours 30 mins';
         final poly = res['polyline']?.toString() ?? '';
         final optList = res['routeOptions'] as List<dynamic>?;
@@ -774,13 +787,58 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
       setState(() {
         _departureDate = picked;
       });
+
+      // Switching to today with a time that has already passed: move the time
+      // to the next valid minute and tell the driver.
+      if (_isPastTimeToday(_departureTime)) {
+        final now = DateTime.now().add(const Duration(minutes: 1));
+        setState(() {
+          _departureTime = TimeOfDay(hour: now.hour, minute: now.minute);
+        });
+        _showPastTimeMessage();
+      }
     }
   }
 
+  // ── Departure-time validation (no past times on today's date) ──────────────
+
+  bool _isDepartureDateToday() {
+    final now = DateTime.now();
+    return _departureDate.year == now.year &&
+        _departureDate.month == now.month &&
+        _departureDate.day == now.day;
+  }
+
+  /// True when the departure date is today and [t] is earlier than the current
+  /// minute. The current minute itself is still allowed.
+  bool _isPastTimeToday(TimeOfDay t) {
+    if (!_isDepartureDateToday()) return false;
+    final now = DateTime.now();
+    return t.hour * 60 + t.minute < now.hour * 60 + now.minute;
+  }
+
+  void _showPastTimeMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Please select a time later than the current time.'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
   Future<void> _selectDepartureTime() async {
+    // On today's date, never open the picker on a time that is already past.
+    final initial = _isPastTimeToday(_departureTime)
+        ? TimeOfDay.now()
+        : _departureTime;
+
     final picked = await showTimePicker(
       context: context,
-      initialTime: _departureTime,
+      initialTime: initial,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -796,6 +854,12 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
     );
 
     if (picked != null && mounted) {
+      if (_isPastTimeToday(picked)) {
+        // Reject the past time and let the driver choose again.
+        _showPastTimeMessage();
+        await _selectDepartureTime();
+        return;
+      }
       setState(() {
         _departureTime = picked;
       });
@@ -803,7 +867,16 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
   }
 
   void _updatePrice(int newPrice) {
-    if (newPrice < 50) return;
+    if (newPrice < 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The minimum price is ₹50.'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     setState(() {
       _price = newPrice;
       _priceController.text = '$_price';
@@ -811,6 +884,43 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
   }
 
   Future<void> _saveChanges() async {
+    if (_seats < _bookedSeats) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$_bookedSeats seats are already booked, so you cannot offer fewer.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    if (_price < 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a price of at least ₹50.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // Block a newly chosen departure that is in the past. An unchanged
+    // departure (e.g. editing only the price of an earlier ride) is allowed.
+    final chosenDeparture = DateTime(
+      _departureDate.year,
+      _departureDate.month,
+      _departureDate.day,
+      _departureTime.hour,
+      _departureTime.minute,
+    );
+    final departureChanged = !chosenDeparture.isAtSameMomentAs(_originalDeparture);
+    final nowMinute = DateTime.now();
+    final currentMinute = DateTime(
+        nowMinute.year, nowMinute.month, nowMinute.day, nowMinute.hour, nowMinute.minute);
+    if (departureChanged && chosenDeparture.isBefore(currentMinute)) {
+      _showPastTimeMessage();
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     final effectiveRideId = widget.rideId ?? widget.rideData?['rideId'] ?? widget.rideData?['id'] ?? '';
@@ -824,8 +934,8 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
         ? _routeResult!.candidateRoutes[_selectedRouteIndex]
         : null;
 
-    final activeDuration = activeCandidate?.durationText ?? _routeResult?.durationText ?? (widget.rideData?['duration']?.toString() ?? '5h 30m');
-    final activeDistance = activeCandidate?.distanceText ?? _routeResult?.distanceText ?? (widget.rideData?['distance']?.toString() ?? '330 KM');
+    final activeDuration = activeCandidate?.durationText ?? _routeResult?.durationText ?? (widget.rideData?['duration']?.toString() ?? '--');
+    final activeDistance = activeCandidate?.distanceText ?? _routeResult?.distanceText ?? (widget.rideData?['distance']?.toString() ?? '--');
     final activePolyline = activeCandidate?.overviewPolyline ?? _routeResult?.overviewPolyline ?? (widget.rideData?['polyline'] ?? widget.rideData?['overviewPolyline'] ?? '').toString();
     final activeRouteName = activeCandidate?.name ?? (activeCandidate?.summary.isNotEmpty == true ? 'via ${activeCandidate!.summary}' : (widget.rideData?['routeName']?.toString() ?? 'Selected Route'));
 
@@ -1001,7 +1111,8 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
     final effectiveRideId = widget.rideId ?? widget.rideData?['rideId'] ?? widget.rideData?['id'] ?? '';
     final from = _pickupController.text.trim().isNotEmpty ? _pickupController.text.trim() : (widget.rideData?['from'] ?? 'Origin').toString();
     final to = _destinationController.text.trim().isNotEmpty ? _destinationController.text.trim() : (widget.rideData?['to'] ?? 'Destination').toString();
-    final dateStr = '${_departureDate.day} ${_departureDate.month}, ${_departureDate.year}';
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final dateStr = '${_departureDate.day} ${monthNames[_departureDate.month - 1]}, ${_departureDate.year}';
     final timeStr = _departureTime.format(context);
 
     final reason = await DriverCancelRideDialog.show(
@@ -1017,14 +1128,28 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
 
     setState(() => _isDeleting = true);
 
+    Map<String, dynamic> cancelRes = {'success': false, 'message': 'This ride has no ID and cannot be cancelled.'};
     try {
       if (effectiveRideId.toString().isNotEmpty) {
-        await DriverService.cancelRide(rideId: effectiveRideId.toString(), reason: reason);
+        cancelRes = await DriverService.cancelRide(rideId: effectiveRideId.toString(), reason: reason);
       }
-    } catch (_) {}
+    } catch (_) {
+      cancelRes = {'success': false, 'message': 'Could not cancel the ride. Please check your connection and try again.'};
+    }
 
     if (!mounted) return;
     setState(() => _isDeleting = false);
+
+    // Only report success (and leave the screen) when the server actually cancelled the ride.
+    if (cancelRes['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cancelRes['message']?.toString() ?? 'Could not cancel the ride. Please try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1053,9 +1178,9 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
         ? _routeResult!.candidateRoutes[_selectedRouteIndex]
         : null;
 
-    final durationStr = activeCandidate?.durationText ?? _routeResult?.durationText ?? (ride['duration'] ?? '5h 30m').toString();
-    final distanceStr = activeCandidate?.distanceText ?? _routeResult?.distanceText ?? (ride['distance'] ?? '330 KM').toString();
-    final arrivalTime = (ride['arrivalTime'] ?? '10:30 AM').toString();
+    final durationStr = activeCandidate?.durationText ?? _routeResult?.durationText ?? (ride['duration'] ?? '--').toString();
+    final distanceStr = activeCandidate?.distanceText ?? _routeResult?.distanceText ?? (ride['distance'] ?? '--').toString();
+    final arrivalTime = (ride['arrivalTime'] ?? '--').toString();
 
     final dateDisplay = _formatDateDisplay(_departureDate);
     final departureTimeFormatted = _formatTimeOfDay(_departureTime);
@@ -1093,6 +1218,7 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
                     child: Row(
                       children: [
                         IconButton(
+                          tooltip: 'Back',
                           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                           onPressed: () => Navigator.pop(context),
                         ),
@@ -1700,9 +1826,21 @@ class _DriverEditRideScreenState extends State<DriverEditRideScreen> {
                                 value: _seats,
                                 icon: Icons.event_seat_rounded,
                                 onIncrement: () => setState(() => _seats++),
-                                onDecrement: () => setState(() {
-                                  if (_seats > 1) _seats--;
-                                }),
+                                onDecrement: () {
+                                  if (_seats <= 1) return;
+                                  if (_seats - 1 < _bookedSeats) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '$_bookedSeats seat${_bookedSeats == 1 ? ' is' : 's are'} already booked, so you cannot offer fewer.',
+                                        ),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  setState(() => _seats--);
+                                },
                               ),
                             ),
                             const SizedBox(width: 10),

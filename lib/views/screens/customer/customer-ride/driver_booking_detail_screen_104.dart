@@ -26,6 +26,9 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
   RideDetailData? _detailData;
   bool _isLoading = false;
 
+  /// True while the fare quote for "Next" is in flight (prevents double taps).
+  bool _isQuoting = false;
+
   // Doorstep Pickup & Drop options state
   bool _isDoorstepSelected = false;
   String _customPickup = '';
@@ -52,13 +55,26 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
     if (rideId.isEmpty) return;
 
     setState(() => _isLoading = true);
-    final res = await RideService.getRideDetails(
-      rideId,
-      pickup: _session.pickup,
-      destination: _session.destination,
-    );
+    Map<String, dynamic> res;
+    try {
+      res = await RideService.getRideDetails(
+        rideId,
+        pickup: _session.pickup,
+        destination: _session.destination,
+      );
+    } catch (_) {
+      res = {'success': false, 'message': 'Could not load ride details. Please check your connection and try again.'};
+    }
 
     if (mounted) {
+      if (res['success'] != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Could not load ride details. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
         if (res['success'] == true) {
@@ -265,7 +281,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
     if (avatar.startsWith('http://') || avatar.startsWith('https://')) return NetworkImage(avatar);
     if (avatar.startsWith('/')) {
       final base = ApiService.serverBaseUrl;
-      return NetworkImage('$base$avatar');
+      return NetworkImage('avatar');
     }
     return null;
   }
@@ -288,6 +304,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -394,7 +411,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                                       Icons.star_rounded,
                                       driver.ratingBadge.isNotEmpty
                                           ? driver.ratingBadge.replaceAll('★ ', '')
-                                          : '${driver.rating} (${driver.ratingCount > 0 ? driver.ratingCount : 126})',
+                                          : '(${driver.ratingCount > 0 ? driver.ratingCount : 126})',
                                       const Color(0xFFFFB800),
                                       const Color(0xFFFFF7EC),
                                     ),
@@ -559,6 +576,10 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                             ? 'Book Whole Car • ₹${wholeCarFare.toInt()}'
                             : 'Next',
                         onPressed: () async {
+                          // Guard against double taps stacking two passenger screens.
+                          if (_isQuoting) return;
+                          _isQuoting = true;
+
                           final effectivePickup = _session.boardingPoint.isNotEmpty
                               ? _session.boardingPoint
                               : (_session.pickup.isNotEmpty ? _session.pickup : driver.pickupPoint);
@@ -582,8 +603,31 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                             if (qRes['success'] == true && qRes['data'] != null) {
                               activeQuote = FareQuoteResult.fromJson(qRes);
                               activeQuoteId = activeQuote.quoteId;
+                            } else if (qRes['success'] != true) {
+                              // Do not continue with a client-side price the server never confirmed.
+                              _isQuoting = false;
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    qRes['message']?.toString() ?? 'Could not confirm the fare. Please try again.',
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                              return;
                             }
-                          } catch (_) {}
+                          } catch (_) {
+                            _isQuoting = false;
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not confirm the fare. Please check your connection and try again.'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                            return;
+                          }
 
                           final updatedSession = _session.copyWith(
                             driver: driver,
@@ -601,6 +645,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                             fareQuote: activeQuote,
                           );
 
+                          _isQuoting = false;
                           if (!context.mounted) return;
                           Navigator.push(
                             context,
@@ -1400,7 +1445,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                         Text(
                           isDoorToDoorRide
                               ? 'Whole Car Flat Price (${wholeCarSeats} seats)'
-                              : 'Whole Car Price (${wholeCarSeats} seats @ ₹${seatPrice.toInt()})',
+                              : 'Whole Car Price (${seatPrice.toInt()})',
                           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         ),
                         Text(

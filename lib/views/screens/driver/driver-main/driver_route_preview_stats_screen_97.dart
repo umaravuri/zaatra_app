@@ -12,7 +12,7 @@ class DriverRoutePreviewStatsScreen extends StatefulWidget {
 
 class _DriverRoutePreviewStatsScreenState extends State<DriverRoutePreviewStatsScreen> {
   final _pickupController = TextEditingController(text: 'Madhapur , Hyderabad');
-  final _destinationController = TextEditingController(text: 'Secundrabad');
+  final _destinationController = TextEditingController(text: 'Secunderabad');
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +20,7 @@ class _DriverRoutePreviewStatsScreenState extends State<DriverRoutePreviewStatsS
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -159,7 +160,7 @@ class _DriverRoutePreviewStatsScreenState extends State<DriverRoutePreviewStatsS
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Text('Durations', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                Text('Duration', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                                 SizedBox(height: 6),
                                 Text('6h 35 Mins', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                               ],

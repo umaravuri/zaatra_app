@@ -3,11 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/navigation/app_navigator.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/driver_service.dart';
-import '../../../services/host_service.dart';
 import '../customer/customer-stay/customer_home_screen_38.dart';
 import '../driver/driver-main/driver_home_dashboard_screen_83.dart';
 import '../driver/driver-onboarding/driver_personal_info_screen_31.dart';
-import '../host/become_host_screen_28.dart';
+import '../host_updated/host_dashboard_screen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   static const String routeName = AppRoutes.roleSelection;
@@ -141,63 +140,22 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
-    // 2. SCENARIO B: Host Selection
+    // 2. SCENARIO B: Host Selection -> straight to the host side (dashboard)
     if (role.toLowerCase() == 'host') {
-      bool isHostExisting = false;
-
-      if (backendCanLogin != null) {
-        isHostExisting = backendCanLogin;
-      } else {
-        // Fallback check if backend unreachable
-        final hostApproval = await HostService.checkHostApprovalStatus(hostPhone: phone);
-        isHostExisting = hostApproval.status == HostApprovalStatus.approved ||
-            hostApproval.properties.isNotEmpty;
-      }
-
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _loadingRole = null;
       });
 
-      if (isHostExisting) {
-        // Case B1: Existing Host -> Host Portal
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: '/become_host'),
-            builder: (context) => BecomeHostScreen(
-              phoneNumber: phone,
-              isExistingHost: true,
-            ),
-          ),
-        );
-      } else {
-        // Case B2: Not registered as Host -> Display Pop-up Alert Dialog
-        final popup = selectResult['popup'] is Map ? selectResult['popup'] : null;
-        final title = popup?['title']?.toString() ?? 'Host Account Not Found';
-        final message = popup?['message']?.toString() ??
-            "You don't have an account with this number on Zaatra. Please register as a Host to list and manage your properties.";
-        final buttonText = popup?['buttonText']?.toString() ?? 'Register as Host';
-
-        _showAccountNotFoundDialog(
-          title: title,
-          message: message,
-          buttonText: buttonText,
-          onRegister: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                settings: const RouteSettings(name: '/become_host'),
-                builder: (context) => BecomeHostScreen(
-                  phoneNumber: phone,
-                  isExistingHost: false,
-                ),
-              ),
-            );
-          },
-        );
-      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: AppRoutes.hostHome),
+          builder: (context) => const HostDashboardScreen(),
+        ),
+        (route) => false,
+      );
       return;
     }
 
@@ -254,6 +212,14 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         if (rawUser?['vehicle'] != null) {
           await prefs.setString('driver_vehicle_$cleanPhone', rawUser!['vehicle'].toString());
         }
+
+        // Make sure the server session is in the driver role (needed to post rides); best effort.
+        try {
+          await AuthService.switchRole('driver');
+        } catch (_) {}
+
+        // A new login starts active.
+        await DriverService.markOnlineAtLogin(phone);
 
         if (!mounted) return;
 
@@ -686,4 +652,3 @@ class _FlightPathPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

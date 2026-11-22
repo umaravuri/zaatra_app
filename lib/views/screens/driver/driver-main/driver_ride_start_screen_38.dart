@@ -14,6 +14,7 @@ class DriverRideStartScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -66,7 +67,7 @@ class DriverRideStartScreen extends StatelessWidget {
                         SizedBox(width: 10),
                         Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textMuted),
                         SizedBox(width: 10),
-                        Text('Secundrabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        Text('Secunderabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                       ],
                     ),
                     SizedBox(height: 6),
@@ -83,7 +84,7 @@ class DriverRideStartScreen extends StatelessWidget {
               const SizedBox(height: 12),
 
               // Destination badge
-              _buildLocationBadge('Destination', 'Secundrabad', const Color(0xFFE53935)),
+              _buildLocationBadge('Destination', 'Secunderabad', const Color(0xFFE53935)),
 
               const SizedBox(height: 20),
 
@@ -101,14 +102,14 @@ class DriverRideStartScreen extends StatelessWidget {
               // Live Interactive Route Map Box matching 38.png
               RouteMapWebView(
                 pickup: 'Madhapur , Hyderabad',
-                destination: 'Secundrabad',
+                destination: 'Secunderabad',
                 height: 220,
                 borderRadius: 20,
                 showNavigationOverlay: true,
                 interactive: true,
                 onTap: () {
                   final navUrl = Uri.parse(
-                    'https://www.google.com/maps/dir/?api=1&origin=${Uri.encodeComponent('Madhapur , Hyderabad')}&destination=${Uri.encodeComponent('Secundrabad')}&travelmode=driving',
+                    'https://www.google.com/maps/dir/?api=1&origin=${Uri.encodeComponent('Secunderabad')}&travelmode=driving',
                   );
                   launchUrl(navUrl, mode: LaunchMode.externalApplication);
                 },

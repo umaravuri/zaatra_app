@@ -92,7 +92,7 @@ class _DriverEarningsHistoryScreenState extends State<DriverEarningsHistoryScree
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+    return 'm-$d';
   }
 
   Future<void> _fetchFuelShareData({
@@ -217,7 +217,7 @@ class _DriverEarningsHistoryScreenState extends State<DriverEarningsHistoryScree
     );
 
     if (picked != null) {
-      final label = '${picked.start.day}/${picked.start.month} - ${picked.end.day}/${picked.end.month}';
+      final label = '${picked.start.month} - ${picked.end.month}';
       setState(() {
         _selectedFilterKey = 'custom';
         _selectedFilterLabel = label;
@@ -933,11 +933,11 @@ class _DriverEarningsHistoryScreenState extends State<DriverEarningsHistoryScree
     final rawAmount = row['amount'] ?? row['price'] ?? row['fare'] ?? row['fuelShare'] ?? row['totalAmount'];
     final amount = _formatAmount(rawAmount);
 
-    final origin = (row['origin'] ?? row['from'] ?? row['startLocation'] ?? row['pickup'] ?? 'Manchuria').toString();
-    final departureTime = _formatTime(row['departureTime'] ?? row['startTime'] ?? row['time'], '9 : 30 AM');
+    final origin = (row['origin'] ?? row['from'] ?? row['startLocation'] ?? row['pickup'] ?? '').toString();
+    final departureTime = _formatTime(row['departureTime'] ?? row['startTime'] ?? row['time'], '--');
 
-    final destination = (row['destination'] ?? row['to'] ?? row['dropLocation'] ?? row['drop'] ?? 'Secundrabad').toString();
-    final arrivalTime = _formatTime(row['completedDate'] ?? row['arrivalTime'] ?? row['endTime'], '15 : 00 PM');
+    final destination = (row['destination'] ?? row['to'] ?? row['dropLocation'] ?? row['drop'] ?? '').toString();
+    final arrivalTime = _formatTime(row['completedDate'] ?? row['arrivalTime'] ?? row['endTime'], '--');
 
     final rideId = (row['id'] ?? row['_id'] ?? row['rideId'] ?? row['bookingId'] ?? '').toString();
 
@@ -1161,6 +1161,7 @@ class _DriverEarningsHistoryScreenState extends State<DriverEarningsHistoryScree
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
+import 'auth_service.dart';
 import '../models/intermediate_pickup_model.dart';
 import '../models/place_location_model.dart';
 import '../models/ride_booking_model.dart';
@@ -535,7 +536,12 @@ class RideService {
       res = await ApiService.post('/rides/bookings/$cleanId/cancel', body);
       if (res['success'] == true) return res;
 
-      return await ApiService.delete('/bookings/$cleanId');
+      // Never fall back to DELETE: that could hard-delete a booking that
+      // the server refused to cancel (e.g. already completed).
+      return {
+        'success': false,
+        'message': res['message']?.toString() ?? 'This booking could not be cancelled.',
+      };
     } catch (e) {
       return {
         'success': false,
@@ -787,9 +793,32 @@ class RideService {
   }
 
   /// Calls POST /api/rides to publish a new intercity shared ride
+  static bool _isWrongRoleError(Map<String, dynamic> res) {
+    final msg = (res['message'] ?? '').toString().toLowerCase();
+    return res['statusCode'] == 403 && msg.contains('role');
+  }
+
   static Future<Map<String, dynamic>> createRide(Map<String, dynamic> rideData) async {
     try {
-      final response = await ApiService.post('/rides', rideData);
+      var response = await ApiService.post('/rides', rideData);
+
+      // "Only a user with role 'driver' can post the ride": the session is not in the driver role.
+      // Switch the session to driver once and try again.
+      if (_isWrongRoleError(response)) {
+        final switched = await AuthService.switchRole('driver');
+        if (switched['success'] == true) {
+          response = await ApiService.post('/rides', rideData);
+        }
+        if (_isWrongRoleError(response)) {
+          return {
+            ...response,
+            'success': false,
+            'message': 'Your account is not set up as a driver on the server. '
+                'Please log out and log in again choosing Driver, or register as a driver.',
+          };
+        }
+      }
+
       final data = response['data'] is Map ? response['data'] as Map<String, dynamic> : response;
 
       if (response['statusCode'] == 409 ||
@@ -894,6 +923,52 @@ class RideService {
         'message': 'Failed to send broadcast message: $e',
       };
     }
+  }
+
+  /// Direct message from the driver to ONE passenger of a ride.
+  ///
+  /// The backend endpoint for this is not available yet, so this deliberately
+  /// reports failure instead of pretending the message was sent. Replace the
+  /// body with the real call (rideId, bookingId, passengerId, message) once the
+  /// endpoint and payload are known.
+  static Future<Map<String, dynamic>> sendPassengerMessage({
+    required String rideId,
+    required String bookingId,
+    required String passengerId,
+    required String message,
+  }) async {
+    return {
+      'success': false,
+      'message': 'Messaging a single passenger is not connected yet.',
+    };
+  }
+
+  /// In-app chat between a passenger and the driver of a booking: message history.
+  ///
+  /// The backend endpoints for this are not available yet, so this returns an empty history and
+  /// marks the chat as unavailable. Replace the body with the real call (bookingId) once the
+  /// endpoint and payload are known; the chat screen already handles a list of
+  /// {isMe, text, time} messages.
+  static Future<Map<String, dynamic>> getDriverChat(String bookingId) async {
+    return {
+      'success': true,
+      'available': false,
+      'messages': <Map<String, dynamic>>[],
+    };
+  }
+
+  /// In-app chat: send one message to the driver of a booking.
+  ///
+  /// Not connected yet, so this deliberately reports failure instead of pretending the message
+  /// was delivered. Replace the body with the real call (bookingId, text) once it exists.
+  static Future<Map<String, dynamic>> sendDriverChatMessage({
+    required String bookingId,
+    required String text,
+  }) async {
+    return {
+      'success': false,
+      'message': 'Chat with the driver is not available yet. Please call the driver instead.',
+    };
   }
 
   /// Price per Seat Calculation: computes formula: distanceKm * basePricePerKm
@@ -1190,7 +1265,6 @@ class RideService {
     String? passengerName,
     double? latitude,
     double? longitude,
-    String? expectedPin, // Deprecated: Kept for backwards compatibility
   }) async {
     try {
       final cleanPin = pin.trim();
@@ -1565,4 +1639,3 @@ class RideService {
     }
   }
 }
-

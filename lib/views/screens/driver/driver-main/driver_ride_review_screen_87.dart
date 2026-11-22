@@ -19,10 +19,11 @@ class DriverRideReviewScreen extends StatelessWidget {
     final dest = rideDetails?['destinationLocation'] ?? rideDetails?['to'] ?? 'Destination';
     final date = _formatDate(rideDetails?['departureDate'] ?? rideDetails?['departs']);
     final time = rideDetails?['departureTime'] ?? rideDetails?['time'] ?? '--:--';
-    final seats = rideDetails?['seats']?.toString() ?? '4';
-    final pricePerSeat = rideDetails?['pricePerSeat'] ?? rideDetails?['price'] ?? 850;
-    final luggageCount = rideDetails?['luggage'] ?? rideDetails?['luggageCount'] ?? 1;
-    final luggageSize = rideDetails?['luggageSize'] ?? 'Medium Bag';
+    final seats = rideDetails?['seats']?.toString() ?? '--';
+    final pricePerSeat = rideDetails?['pricePerSeat'] ?? rideDetails?['price'] ?? '--';
+    final luggageCount = rideDetails?['luggage'] ?? rideDetails?['luggageCount'];
+    final luggageSize = rideDetails?['luggageSize'] ?? '';
+    final luggageText = luggageCount == null ? '--' : '$luggageCount $luggageSize'.trim();
     final duration = rideDetails?['duration'] ?? '';
     final distance = rideDetails?['distance'] ?? '';
     final polyline = rideDetails?['polyline'] ?? '';
@@ -65,6 +66,7 @@ class DriverRideReviewScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -105,7 +107,8 @@ class DriverRideReviewScreen extends StatelessWidget {
                   _buildLocationBox('Destination', dest, const Color(0xFFE53935)),
                   const SizedBox(height: 16),
 
-                  // Route Map
+                  // Route Map (only when real coordinates exist; 0,0 would show the wrong place)
+                  if (pickupLat != 0.0 && pickupLng != 0.0 && destLat != 0.0 && destLng != 0.0)
                   RouteMapWebView(
                     pickup: pickup,
                     destination: dest,
@@ -140,7 +143,7 @@ class DriverRideReviewScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildDetailCard(
                     'Luggage',
-                    '$luggageCount $luggageSize',
+                    luggageText,
                     Icons.luggage_rounded,
                   ),
 

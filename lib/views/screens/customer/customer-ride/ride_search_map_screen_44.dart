@@ -115,6 +115,25 @@ class _RideSearchMapScreenState extends State<RideSearchMapScreen> {
     super.dispose();
   }
 
+  /// Parses the picked '21 Nov 2026' + '09:30 AM' strings into a DateTime (null if either is unreadable).
+  DateTime? _selectedDepartureDateTime() {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final d = RegExp(r'^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$').firstMatch((_date ?? '').trim());
+    final t = RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$').firstMatch((_time ?? '').trim());
+    if (d == null || t == null) return null;
+    final month = months.indexOf(d.group(2)!);
+    if (month < 0) return null;
+    var hour = int.parse(t.group(1)!) % 12;
+    if (t.group(3)!.toUpperCase() == 'PM') hour += 12;
+    return DateTime(
+      int.parse(d.group(3)!),
+      month + 1,
+      int.parse(d.group(1)!),
+      hour,
+      int.parse(t.group(2)!),
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -147,7 +166,7 @@ class _RideSearchMapScreenState extends State<RideSearchMapScreen> {
   Future<void> _selectTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 30),
+      initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 30))),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -167,7 +186,7 @@ class _RideSearchMapScreenState extends State<RideSearchMapScreen> {
       final minute = picked.minute.toString().padLeft(2, '0');
       final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
       setState(() {
-        _time = '${hour.toString().padLeft(2, '0')}:$minute $period';
+        _time = 'minute $period';
       });
     }
   }
@@ -251,6 +270,7 @@ class _RideSearchMapScreenState extends State<RideSearchMapScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -492,6 +512,29 @@ class _RideSearchMapScreenState extends State<RideSearchMapScreen> {
                             content: Text('Please select time.'),
                             backgroundColor: Colors.redAccent,
                             duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (pickupText.toLowerCase() == destText.toLowerCase()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Pickup and destination cannot be the same place.'),
+                            backgroundColor: Colors.redAccent,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final departure = _selectedDepartureDateTime();
+                      if (departure != null && departure.isBefore(DateTime.now())) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('That date and time have already passed. Please choose a later time.'),
+                            backgroundColor: Colors.redAccent,
+                            duration: Duration(seconds: 3),
                           ),
                         );
                         return;

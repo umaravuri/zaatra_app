@@ -43,12 +43,15 @@ class DriverCancelRideDialog extends StatefulWidget {
 }
 
 class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
+  /// The "Other" option needs a written explanation; one constant so the checks can't drift apart.
+  static const String _otherReason = 'Other reason';
+
   final List<String> _presetReasons = [
     'Vehicle breakdown / Mechanical issue',
     'Personal emergency / Health issue',
     'Severe weather / Road blockage',
     'Schedule conflict / Accidental posting',
-    'Other reason',
+    _otherReason,
   ];
 
   late String _selectedReason;
@@ -71,7 +74,7 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
     setState(() => _errorMessage = null);
 
     String finalReason = _selectedReason;
-    if (_selectedReason == 'Other reason') {
+    if (_selectedReason == _otherReason) {
       final customText = _customReasonController.text.trim();
       if (customText.isEmpty) {
         setState(() => _errorMessage = 'Please describe why you are cancelling.');
@@ -104,7 +107,7 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.12),
+              color: Colors.red.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.cancel_rounded, color: Colors.red, size: 24),
@@ -124,7 +127,7 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$cleanOrigin → $cleanDest • ${widget.date}$timeStr',
+                  '$cleanOrigin → $cleanDest • timeStr',
                   style: const TextStyle(
                     fontSize: 11.5,
                     color: AppColors.textSecondary,
@@ -196,13 +199,13 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
 
               // Custom explanation / details field
               Text(
-                _selectedReason == 'Other reason'
+                _selectedReason == _otherReason
                     ? 'Specify reason (required):'
                     : 'Additional remarks (optional):',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: _selectedReason == 'Other reason' ? Colors.red : AppColors.textSecondary,
+                  color: _selectedReason == _otherReason ? Colors.red : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -211,7 +214,7 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: _selectedReason == 'Other reason'
+                  hintText: _selectedReason == _otherReason
                       ? 'e.g. Family emergency, tyre puncture...'
                       : 'Add any specific notes for passengers...',
                   hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
@@ -232,8 +235,8 @@ class _DriverCancelRideDialogState extends State<DriverCancelRideDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                      color: _errorMessage != null ? Colors.red : Colors.red,
+                    borderSide: const BorderSide(
+                      color: Colors.red,
                       width: 1.5,
                     ),
                   ),

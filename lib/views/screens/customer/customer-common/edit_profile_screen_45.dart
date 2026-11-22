@@ -153,19 +153,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (phoneHasChanged && !_isPhoneVerified) {
       setState(() => _isLoading = true);
       final formattedPhone = phone.startsWith('+91') ? phone : '+91 $phone';
-      String otp = '123456';
+      String otp = '';
       String matchedPhone = formattedPhone;
+      bool otpRequested = false;
 
       try {
         final result = await AuthService.loginInitMobile(phone: formattedPhone);
         if (result['success'] == true) {
+          otpRequested = true;
           matchedPhone = result['matchedPhone']?.toString() ?? formattedPhone;
-          otp = (result['otp'] ?? (result['data'] is Map ? result['data']['otp'] : null))?.toString() ?? '123456';
+          otp = (result['otp'] ?? (result['data'] is Map ? result['data']['otp'] : null))?.toString() ?? '';
         }
       } catch (_) {}
 
       if (!mounted) return;
       setState(() => _isLoading = false);
+
+      if (!otpRequested) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not send the verification code. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
 
       // Show SMS OTP demonstration toast matching login screen
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,7 +188,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'OTP Sent to $matchedPhone: $otp',
+                  otp.isNotEmpty ? 'OTP Sent to $matchedPhone: $otp' : 'OTP sent to $matchedPhone',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
               ),

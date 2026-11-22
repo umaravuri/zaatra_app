@@ -26,6 +26,7 @@ class _DriverTripPrepNotesScreenState extends State<DriverTripPrepNotesScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -80,7 +81,7 @@ class _DriverTripPrepNotesScreenState extends State<DriverTripPrepNotesScreen> {
                               SizedBox(width: 12),
                               Icon(Icons.arrow_forward_rounded, color: AppColors.textSecondary, size: 18),
                               SizedBox(width: 12),
-                              Text('Secundrabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                              Text('Secunderabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -153,7 +154,7 @@ class _DriverTripPrepNotesScreenState extends State<DriverTripPrepNotesScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
-                        Text('pink square mall,Madhapur', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        Text('Pink Square Mall, Madhapur', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                         Text('07 : 45 AM', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                       ],
                     ),

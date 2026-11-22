@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../services/driver_service.dart';
+import '../../../../services/trip_stage.dart';
 import '../../../widgets/custom_button.dart';
 import 'driver_booking_requests_screen_99.dart';
 import '../../../widgets/driver_cancel_ride_dialog.dart';
@@ -271,6 +272,7 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
         backgroundColor: Colors.white,
         appBar: AppBar(
           leading: IconButton(
+            tooltip: 'Back',
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
             onPressed: _handleBack,
           ),
@@ -316,19 +318,26 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
               ),
               Column(
                 children: [
-                  // Segmented Tabs Header matching backend tabs metadata
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Row(
-                      children: List.generate(_tabs.length, (index) {
-                        final tabKey = _tabs[index].toLowerCase();
-                        final count = _tabCounts[tabKey] ?? 0;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: _buildTabButton(_tabs[index], index, count),
-                        );
-                      }),
+                  // Segmented Tabs Header matching Figma frame "98" (content-hugging pill widths,
+                  // wrapped in FittedBox so it never overflows even when count badges add extra
+                  // width beyond Figma's badge-less reference)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(_tabs.length, (index) {
+                          final tabKey = _tabs[index].toLowerCase();
+                          final count = _tabCounts[tabKey] ?? 0;
+                          final isLast = index == _tabs.length - 1;
+                          return Padding(
+                            padding: EdgeInsets.only(right: isLast ? 0 : 4),
+                            child: _buildTabButton(_tabs[index], index, count),
+                          );
+                        }),
+                      ),
                     ),
                   ),
 
@@ -382,10 +391,12 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
       onTap: () => _onTabSelected(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : const Color(0xFFF3EDF7),
-          borderRadius: BorderRadius.circular(16),
+          color: isSelected ? AppColors.primary : const Color(0xFFEFEAFF),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -393,9 +404,9 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+                color: isSelected ? Colors.white : Colors.black,
               ),
             ),
             if (count > 0) ...[
@@ -409,7 +420,7 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : AppColors.primary,
                   ),
@@ -427,14 +438,14 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
     final from = (ride['from'] ?? ride['pickupLocation'] ?? 'Origin').toString();
     final to = (ride['to'] ?? ride['destinationLocation'] ?? 'Destination').toString();
     final departureTime = (ride['departureTime'] ?? '06:00 AM').toString();
-    final arrivalTime = (ride['arrivalTime'] ?? '10:30 AM').toString();
+    final arrivalTime = (ride['arrivalTime'] ?? '--').toString();
     final dateStr = (ride['dateDisplay'] ?? ride['date'] ?? _formatRideDate(ride)).toString();
     final bookedSeats = ride['booked'] ?? ride['seatsBooked'] ?? 0;
     final totalSeats = ride['seats'] ?? ride['totalSeats'] ?? 4;
-    final priceFormatted = ride['priceFormatted']?.toString() ?? '₹${ride['price'] ?? 850}/seat';
+    final priceFormatted = ride['priceFormatted']?.toString() ?? (ride['price'] != null ? '₹${ride['price']}/seat' : '--');
     final seatsDisplay = ride['seatsDisplay']?.toString() ?? '$bookedSeats / $totalSeats Seats';
-    final durationStr = (ride['duration'] ?? '4h 30m').toString();
-    final distanceStr = (ride['distance'] ?? '275 KM').toString();
+    final durationStr = (ride['duration'] ?? '--').toString();
+    final distanceStr = (ride['distance'] ?? '--').toString();
     
     final vehicle = (ride['vehicle'] ?? '${ride['vehicleMake'] ?? ''} ${ride['vehicleModel'] ?? ''}').toString().trim();
     final effectiveVehicle = vehicle.isNotEmpty 
@@ -442,7 +453,9 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
         : (_registeredVehicle.isNotEmpty ? _registeredVehicle : '-');
 
     final actions = ride['actions'] is Map ? (ride['actions'] as Map) : null;
-    final canViewTripCard = actions?['canViewTripCard'] ?? true;
+    // A cancelled ride has no trip to share.
+    final canViewTripCard =
+        actions?['canViewTripCard'] != false && _selectedTabIndex != 3 && !TripStage.isCancelled(ride);
     final startRideButtonText = _selectedTabIndex == 0
         ? (actions?['startRideButtonText']?.toString() ?? 'Start Ride')
         : (_selectedTabIndex == 2 ? 'Ratings & Reviews' : 'View Details');
@@ -630,15 +643,6 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                          if (_selectedTabIndex == 2) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DriverRatingsReviewsScreen(rideId: rideId),
-                              ),
-                            );
-                            return;
-                          }
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -853,4 +857,3 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
     );
   }
 }
-

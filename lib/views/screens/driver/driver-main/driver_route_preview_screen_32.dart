@@ -154,8 +154,8 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
       'type': 'destination',
     });
 
-    final displayDistance = _routeResult?.distanceText ?? '15.4 km';
-    final displayDuration = _routeResult?.durationText ?? '40 min';
+    final displayDistance = _routeResult?.distanceText ?? '--';
+    final displayDuration = _routeResult?.durationText ?? '--';
 
     final ridePayload = <String, dynamic>{
       'from': _pickup.formattedAddress.isNotEmpty ? _pickup.formattedAddress : _pickup.name,
@@ -179,7 +179,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
       'maxLuggagePerPassenger': 2,
       'departs': widget.selectedDateTime?.toIso8601String() ?? widget.date ?? DateTime.now().add(const Duration(days: 1)).toIso8601String(),
       'date': widget.selectedDateTime?.toIso8601String() ?? widget.date ?? DateTime.now().add(const Duration(days: 1)).toIso8601String(),
-      'departureDate': widget.date ?? (widget.selectedDateTime != null ? '${widget.selectedDateTime!.day}-${widget.selectedDateTime!.month}-${widget.selectedDateTime!.year}' : ''),
+      'departureDate': widget.date ?? (widget.selectedDateTime != null ? '${widget.selectedDateTime!.month}-${widget.selectedDateTime!.year}' : ''),
       'departureTime': widget.time ?? '',
       'arrivalTime': '',
       'intermediatePickups': dynamicIntermediatePickups,
@@ -196,13 +196,14 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayDistance = _isLoadingRoute ? 'Calculating...' : (_routeResult?.distanceText ?? '15.4 km');
-    final displayDuration = _isLoadingRoute ? 'Calculating...' : (_routeResult?.durationText ?? '40 min');
+    final displayDistance = _isLoadingRoute ? 'Calculating...' : (_routeResult?.distanceText ?? '--');
+    final displayDuration = _isLoadingRoute ? 'Calculating...' : (_routeResult?.durationText ?? '--');
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -374,7 +375,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildMetricCard('Durations', displayDuration),
+                        child: _buildMetricCard('Duration', displayDuration),
                       ),
                     ],
                   ),
@@ -414,4 +415,3 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
     );
   }
 }
-

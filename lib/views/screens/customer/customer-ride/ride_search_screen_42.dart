@@ -34,11 +34,20 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
     super.initState();
     _pickupController = TextEditingController(text: widget.initialPickup ?? '');
     _destinationController = TextEditingController(text: widget.initialDestination ?? '');
-    final now = DateTime.now();
+    // Default to 30 minutes from now (never a time that has already passed).
+    final soon = DateTime.now().add(const Duration(minutes: 30));
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    _date = '${now.day} ${months[now.month - 1]} ${now.year}';
-    _time = '09:30 AM';
+    _date = '${soon.day} ${months[soon.month - 1]} ${soon.year}';
+    final hour12 = soon.hour % 12 == 0 ? 12 : soon.hour % 12;
+    _time = '${soon.minute.toString().padLeft(2, '0')} ${soon.hour >= 12 ? 'PM' : 'AM'}';
     _loadSearchConfig();
+  }
+
+  @override
+  void dispose() {
+    _pickupController.dispose();
+    _destinationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSearchConfig() async {
@@ -53,7 +62,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
           }
           final defs = res['defaultValues'] ?? (res['data'] is Map ? res['data']['defaultValues'] : null);
           if (defs is Map && defs['passengers'] != null) {
-            final pCount = defs['passengers'];
+            final pCount = int.tryParse(defs['passengers'].toString()) ?? 1;
             _passengers = '$pCount Passenger${pCount > 1 ? 's' : ''}';
           }
           final q = res['quickOptions'] ?? (res['data'] is Map ? res['data']['quickOptions'] : null);
@@ -97,7 +106,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
   Future<void> _selectTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 30),
+      initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 30))),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -117,7 +126,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
       final minute = picked.minute.toString().padLeft(2, '0');
       final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
       setState(() {
-        _time = '${hour.toString().padLeft(2, '0')}:$minute $period';
+        _time = 'minute $period';
       });
     }
   }
@@ -201,6 +210,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),

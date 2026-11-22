@@ -3,6 +3,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../services/api_service.dart';
 import '../../../../services/ride_service.dart';
 
+/// Reads [key] from a nested booking object that the API may send either as a Map
+/// or as a plain String (for example `"driver": "Ravi"`). Returns null for anything
+/// that is not a Map, instead of throwing "String is not a subtype of int of 'index'".
+dynamic nestedBookingField(dynamic parent, String key) {
+  if (parent is Map) return parent[key];
+  return null;
+}
+
 class CustomerRateRideSheet extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
   final String? bookingId;
@@ -156,6 +164,7 @@ class _CustomerRateRideSheetState extends State<CustomerRateRideSheet> {
   }
 
   Future<void> _submitRating() async {
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
     final raw = widget.bookingData ?? {};
@@ -170,9 +179,21 @@ class _CustomerRateRideSheetState extends State<CustomerRateRideSheet> {
         '';
     final dId = widget.driverId ??
         raw['driverId']?.toString() ??
-        raw['driver']?['id']?.toString() ??
+        nestedBookingField(raw['driver'], 'id')?.toString() ??
         _driverData?['id']?.toString() ??
         '';
+
+    // Never post a review that is not tied to a real ride and booking.
+    if (rId.isEmpty || bId.isEmpty) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('We could not identify this ride, so the review was not sent. Please try again from your booking history.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Group A API 2 payload schema
     final payload = {
@@ -188,38 +209,44 @@ class _CustomerRateRideSheetState extends State<CustomerRateRideSheet> {
       'comment': _reviewController.text.trim(),
     };
 
+    String? error;
+    String msg = 'Review submitted successfully! Thank you for rating your ride.';
     try {
       final res = await RideService.submitRateRide(payload);
-      final msg = res['message']?.toString() ?? 'Review submitted successfully! Thank you for rating your ride.';
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        Navigator.pop(context, true);
-        widget.onSubmitted?.call();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
+      if (res['success'] == true) {
+        msg = res['message']?.toString() ?? msg;
+      } else {
+        error = res['message']?.toString() ?? 'Could not submit your review. Please try again.';
       }
-    } catch (_) {}
+    } catch (e) {
+      error = 'Could not submit your review. Please try again.';
+    }
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      Navigator.pop(context, true);
-      widget.onSubmitted?.call();
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    final messenger = ScaffoldMessenger.of(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Review submitted successfully! Thank you for rating your ride.'),
-          backgroundColor: Color(0xFF4CAF50),
+    if (error != null) {
+      // Keep the sheet open so the rating isn't lost, and never claim success.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
+      return;
     }
+
+    Navigator.pop(context, true);
+    widget.onSubmitted?.call();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFF4CAF50),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -229,8 +256,9 @@ class _CustomerRateRideSheetState extends State<CustomerRateRideSheet> {
     final driverName = widget.driverName ??
         _driverData?['name'] ??
         raw['driverName'] ??
-        raw['driver']?['name'] ??
-        raw['driver']?['fullName'] ??
+        nestedBookingField(raw['driver'], 'name') ??
+        nestedBookingField(raw['driver'], 'fullName') ??
+        (raw['driver'] is String && (raw['driver'] as String).trim().isNotEmpty ? raw['driver'] : null) ??
         'Driver';
 
     final vehicleInfo = widget.vehicleInfo ??
@@ -239,7 +267,8 @@ class _CustomerRateRideSheetState extends State<CustomerRateRideSheet> {
             ? '${_driverData!['vehicleModel']} ${_driverData!['vehicleNumberPlate']}'
             : null) ??
         raw['vehicleInfo'] ??
-        raw['vehicle']?['model'] ??
+        nestedBookingField(raw['vehicle'], 'model') ??
+        (raw['vehicle'] is String && (raw['vehicle'] as String).trim().isNotEmpty ? raw['vehicle'] : null) ??
         raw['carModel'] ??
         '';
 

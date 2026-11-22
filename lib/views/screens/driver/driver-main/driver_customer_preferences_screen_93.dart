@@ -417,10 +417,23 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
       final fromLocation = widget.rideDetails?['from'] ?? widget.rideDetails?['pickupLocation'] ?? '';
       final toLocation = widget.rideDetails?['to'] ?? widget.rideDetails?['destinationLocation'] ?? '';
 
-      final seatsCount = (widget.rideDetails?['seats'] is num) ? (widget.rideDetails?['seats'] as num).toInt() : 4;
-      final seatPrice = (widget.rideDetails?['price'] is num)
-          ? (widget.rideDetails?['price'] as num).toDouble()
-          : (double.tryParse(widget.rideDetails?['price']?.toString() ?? '') ?? 550.0);
+      // Seats and price must come from what the driver entered; never publish invented values.
+      final rawSeats = widget.rideDetails?['seats'];
+      final seatsCount = rawSeats is num ? rawSeats.toInt() : (int.tryParse(rawSeats?.toString() ?? '') ?? 0);
+      final rawPrice = widget.rideDetails?['price'];
+      final seatPrice = rawPrice is num ? rawPrice.toDouble() : (double.tryParse(rawPrice?.toString() ?? '') ?? 0.0);
+      if (seatsCount <= 0 || seatPrice <= 0) {
+        if (mounted) {
+          setState(() => _isPublishing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Seats and price per seat are required. Please go back and enter them before publishing.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
       final wholeCarPrice = (widget.rideDetails?['wholeCarPrice'] is num)
           ? widget.rideDetails!['wholeCarPrice']
           : (seatPrice * seatsCount).round();
@@ -702,6 +715,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -766,20 +780,6 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                     const SizedBox(height: 12),
 
                     ..._buildSectionItems(_template.driverPreferences),
-                    const SizedBox(height: 10),
-                    _buildAddButton(
-                      label: _template.driverPreferences.addButtonTitle,
-                      onTap: () {
-                        _showAddCustomDialog(
-                          title: 'Add Driver Preference',
-                          hint: 'e.g. Calm Driving, Music Choice, Non-Chatty',
-                          category: 'driver',
-                          onAdd: (item) {
-                            setState(() => _template.driverPreferences.items.add(item));
-                          },
-                        );
-                      },
-                    ),
 
                     const SizedBox(height: 24),
 

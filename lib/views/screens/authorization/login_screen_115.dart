@@ -89,25 +89,31 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (_) {}
 
     String matchedPhone = formattedPhone;
-    String otp = '123456';
+    String otp = '';
     String userName = 'User';
+    bool otpRequested = false;
+    String failureMessage = 'Could not send the verification code. Please check your connection and try again.';
 
-    // Request 6-digit OTP from backend (or fallback to instant OTP)
+    // Request 6-digit OTP from backend. The client never invents an OTP.
     try {
       final result = await AuthService.loginInitMobile(
         phone: formattedPhone,
       );
 
       if (result['success'] == true) {
+        otpRequested = true;
         matchedPhone = result['matchedPhone']?.toString() ?? formattedPhone;
-        otp = (result['otp'] ?? (result['data'] is Map ? result['data']['otp'] : null))?.toString() ?? '123456';
+        otp = (result['otp'] ?? (result['data'] is Map ? result['data']['otp'] : null))?.toString() ?? '';
         final rawUser = result['user'] ?? (result['data'] is Map ? result['data']['user'] : null);
         if (rawUser is Map) {
           userName = (rawUser['name'] ?? rawUser['fullName'] ?? 'User').toString();
         }
+      } else {
+        final serverMessage = result['message']?.toString().trim() ?? '';
+        if (serverMessage.isNotEmpty) failureMessage = serverMessage;
       }
     } catch (_) {
-      // Backend unreachable or offline; continue with OTP flow
+      // Backend unreachable; handled below with a visible error.
     }
 
     if (!mounted) return;
@@ -115,6 +121,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = false;
     });
+
+    if (!otpRequested) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failureMessage),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -124,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'OTP Sent to $matchedPhone: $otp',
+                otp.isNotEmpty ? 'OTP Sent to $matchedPhone: $otp' : 'OTP sent to $matchedPhone',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),

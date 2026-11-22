@@ -145,7 +145,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  '${hotel.location} (${hotel.distanceFormatted ?? "2.5 KMs Away"})',
+                                  '(${hotel.distanceFormatted ?? "2.5 KMs Away"})',
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     color: AppColors.textSecondary,
@@ -249,7 +249,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   ),
@@ -349,7 +349,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
@@ -367,7 +367,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
@@ -381,7 +381,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -436,7 +436,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                           ),
                           if (isLast)
                             Container(
-                              color: Colors.black.withOpacity(0.48),
+                              color: Colors.black.withValues(alpha: 0.48),
                               child: const Center(
                                 child: Text(
                                   '+12 More',
@@ -696,7 +696,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             border: Border.all(color: const Color(0xFFE8E6F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -981,10 +981,10 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4),
                     ],
                   ),
                   child: const Text(

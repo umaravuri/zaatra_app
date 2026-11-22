@@ -722,117 +722,96 @@ class _DriverIntermediatePickupsScreenState
 
   // ── Widget Builders ─────────────────────────────────────────────────────────
 
-  Widget _buildPickupDestinationCard(String pickupText, String destText) {
+  /// 30x30 pin icon: exported Figma PNG, with a drawn fallback if missing.
+  Widget _buildLocationIcon({
+    required String asset,
+    required IconData fallbackIcon,
+    required Color color,
+  }) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(fallbackIcon, color: color, size: 18),
+        ),
+      ),
+    );
+  }
+
+  // Figma 88246851: two stacked white cards (68px, radius 10, shadow
+  // 0 0 4 #EDE8FF, no gap); icon 30x30, label 12 #A1A1A1, address 12 black.
+  Widget _buildLocationCard({
+    required String label,
+    required String address,
+    required Widget icon,
+  }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [BoxShadow(color: Color(0xFFEDE8FF), blurRadius: 4)],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          // Pickup Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2.0),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: Color(0xFF4CAF50),
-                  size: 22,
+          icon,
+          const SizedBox(width: 19),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFFA1A1A1)),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Pickup location',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      pickupText,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  address,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.black),
                 ),
-              ),
-            ],
-          ),
-
-          // Dotted connector
-          Padding(
-            padding: const EdgeInsets.only(left: 10.0, top: 4.0, bottom: 4.0),
-            child: SizedBox(
-              height: 24,
-              child: CustomPaint(
-                painter: _DottedLinePainter(color: Colors.grey.shade300),
-              ),
+              ],
             ),
           ),
-
-          // Destination Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2.0),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: Color(0xFFE53935),
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Destination',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      destText,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPickupDestinationCard(String pickupText, String destText) {
+    return Column(
+      children: [
+        _buildLocationCard(
+          label: 'Pickup location',
+          address: pickupText,
+          icon: _buildLocationIcon(
+            asset:
+                'assets/images/ChatGPT_Image_Aug_4__2026__11_34_09_AM-removebg-preview 1.png',
+            fallbackIcon: Icons.my_location_rounded,
+            color: const Color(0xFF4CAF50),
+          ),
+        ),
+        _buildLocationCard(
+          label: 'Destination',
+          address: destText,
+          icon: _buildLocationIcon(
+            asset: 'assets/images/image 23.png',
+            fallbackIcon: Icons.flag_rounded,
+            color: const Color(0xFFE53935),
+          ),
+        ),
+      ],
     );
   }
 
@@ -872,14 +851,14 @@ class _DriverIntermediatePickupsScreenState
         decoration: BoxDecoration(
           color: const Color(0xFFFBFBFE),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary.withOpacity(0.35), width: 1.2),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -940,7 +919,7 @@ class _DriverIntermediatePickupsScreenState
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1022,7 +1001,7 @@ class _DriverIntermediatePickupsScreenState
               decoration: BoxDecoration(
                 color: const Color(0xFFF0EDFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -1108,108 +1087,123 @@ class _DriverIntermediatePickupsScreenState
     );
   }
 
+  // Figma 88246851 route plan: 12px grey (#D9D9D9) stop dots joined by a 1px
+  // line, car glyph (20x17) on the first stop. The marker column has a fixed
+  // width and the line is drawn inside it, so the line always runs through
+  // the centre of every marker.
+  static const Color _timelineGrey = Color(0xFFD9D9D9);
+  static const double _timelineMarkerY = 10;
+
   Widget _buildRoutePlanTimeline(List<_RoutePlanItem> items) {
     return Column(
       children: List.generate(items.length, (index) {
         final item = items[index];
+        final isFirst = index == 0;
         final isLast = index == items.length - 1;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Time Column
-            SizedBox(
-              width: 65,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2.0),
-                child: Text(
-                  item.time,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 46),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Time column
+                SizedBox(
+                  width: 64,
+                  child: Text(
+                    item.time,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(width: 10),
-
-            // Timeline Node & Vertical Connector
-            Column(
-              children: [
-                if (item.isStart)
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0EDFC),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                    ),
-                    child: const Center(
-                      child: Text('🚗', style: TextStyle(fontSize: 12)),
-                    ),
-                  )
-                else
-                  Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade400,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                if (!isLast)
-                  Container(
-                    width: 2,
-                    height: 38,
-                    color: Colors.grey.shade300,
-                  ),
-              ],
-            ),
-
-            const SizedBox(width: 16),
-
-            // Location Name & Price Column
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.location,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight:
-                              item.isStart || item.isEnd ? FontWeight.bold : FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+                // Marker column with the connector line inside it
+                SizedBox(
+                  width: 20,
+                  child: Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Positioned(
+                        top: isFirst ? _timelineMarkerY : 0,
+                        bottom: isLast ? null : 0,
+                        height: isLast ? _timelineMarkerY : null,
+                        child: Container(width: 1, color: _timelineGrey),
                       ),
-                    ),
-                    if (item.price != null && item.price! > 0 && !item.isStart)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0EDFC),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                      Positioned(
+                        top: item.isStart ? 1 : _timelineMarkerY - 6,
+                        child: item.isStart
+                            ? Container(
+                                width: 20,
+                                height: 17,
+                                color: Colors.white,
+                                child: Image.asset(
+                                  'assets/images/glyphs-poly_car-wash.png',
+                                  width: 20,
+                                  height: 17,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.directions_car_filled_rounded,
+                                    size: 17,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: _timelineGrey,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                // Location name & price badge
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
                         child: Text(
-                          '₹ ${item.price!.toStringAsFixed(0)}',
+                          item.location,
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
                           ),
                         ),
                       ),
-                  ],
+                      if (item.price != null && item.price! > 0 && !item.isStart)
+                        Container(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0EDFC),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '₹ ${item.price!.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         );
       }),
     );
@@ -1223,7 +1217,7 @@ class _DriverIntermediatePickupsScreenState
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -1235,34 +1229,4 @@ class _DriverIntermediatePickupsScreenState
       ),
     );
   }
-}
-
-class _DottedLinePainter extends CustomPainter {
-  final Color color;
-
-  _DottedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    const dashHeight = 4.0;
-    const dashSpace = 3.0;
-    double startY = 0;
-
-    while (startY < size.height) {
-      canvas.drawLine(
-        Offset(0, startY),
-        Offset(0, (startY + dashHeight).clamp(0, size.height)),
-        paint,
-      );
-      startY += dashHeight + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

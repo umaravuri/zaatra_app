@@ -198,7 +198,7 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
     // Only name field is mandatory
     if (firstName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter full name.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter your first name.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -206,13 +206,13 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
     // Phone number must be valid
     if (phone.isEmpty || phone.length < 10 || !RegExp(r'^[6-9][0-9]{9}$').hasMatch(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 10-digit mobile number starting with 9, 8, 7, or 6.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.'), backgroundColor: Colors.red),
       );
       return;
     }
 
     // Email is optional: only validate format if user entered something
-    if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
+    if (email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid email address or leave it empty.'), backgroundColor: Colors.red),
       );
@@ -231,75 +231,55 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
     final bookingSeats = isWholeCar ? totalSeats : _seatsCount;
 
     final rideId = session.rideId.isNotEmpty ? session.rideId : session.driver.id;
-    var res = await RideService.createBooking(
-      rideId: rideId,
-      quoteId: session.quoteId.isNotEmpty ? session.quoteId : null,
-      passengerDetailsList: [
-        {
-          'name': fullName,
-          'phone': '+91 $phone',
-          'email': email,
-        }
-      ],
-      fullName: fullName,
-      lastName: lastName.isNotEmpty ? lastName : firstName,
-      phoneNumber: '+91 $phone',
-      emailID: email,
-      numberOfSeats: bookingSeats,
-      boardingPoint: session.boardingPoint.isNotEmpty ? session.boardingPoint : session.pickup,
-      destination: session.destination,
-      pickup: session.pickup.isNotEmpty ? session.pickup : session.boardingPoint,
-      customerPickupAddress: session.customerPickupAddress.isNotEmpty ? session.customerPickupAddress : session.boardingPoint,
-      customerDropAddress: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : session.destination,
-      customerPickupPincode: session.customerPickupPincode,
-      customerPickupLandmark: session.customerPickupLandmark,
-      custPickupLandmark: session.customerPickupLandmark,
-      customerDropLandmark: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : null,
-      doorstepPickupRequested: session.isDoorstepPickup,
-      isWholeCar: isWholeCar,
-      extraPickupCharge: session.detourCharge,
-      pricePerSeat: session.driver.pricePerSeat,
-      totalAmount: totalFare,
-      paymentMethod: 'PAY_TO_DRIVER',
-      luggage: session.luggage.isNotEmpty ? session.luggage : "1 Medium Bag",
-      status: isAutoApproved ? 'confirmed' : 'pending',
-    );
+    // Single payload builder; only the quote id differs between the first attempt and the retry.
+    Future<Map<String, dynamic>> submitBooking(String? quoteId) => RideService.createBooking(
+          rideId: rideId,
+          quoteId: quoteId,
+          passengerDetailsList: [
+            {
+              'name': fullName,
+              'phone': '+91 $phone',
+              'email': email,
+            }
+          ],
+          fullName: fullName,
+          lastName: lastName.isNotEmpty ? lastName : firstName,
+          phoneNumber: '+91 $phone',
+          emailID: email,
+          numberOfSeats: bookingSeats,
+          boardingPoint: session.boardingPoint.isNotEmpty ? session.boardingPoint : session.pickup,
+          destination: session.destination,
+          pickup: session.pickup.isNotEmpty ? session.pickup : session.boardingPoint,
+          customerPickupAddress: session.customerPickupAddress.isNotEmpty ? session.customerPickupAddress : session.boardingPoint,
+          customerDropAddress: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : session.destination,
+          customerPickupPincode: session.customerPickupPincode,
+          customerPickupLandmark: session.customerPickupLandmark,
+          custPickupLandmark: session.customerPickupLandmark,
+          customerDropLandmark: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : null,
+          doorstepPickupRequested: session.isDoorstepPickup,
+          isWholeCar: isWholeCar,
+          extraPickupCharge: session.detourCharge,
+          pricePerSeat: session.driver.pricePerSeat,
+          totalAmount: totalFare,
+          paymentMethod: 'PAY_TO_DRIVER',
+          luggage: session.luggage.isNotEmpty ? session.luggage : "1 Medium Bag",
+          status: isAutoApproved ? 'confirmed' : 'pending',
+        );
 
-    // If initial attempt failed with quote error, retry cleanly without the stale quoteId
-    if (res['success'] != true && (res['message']?.toString().toLowerCase().contains('quote') ?? false)) {
-      res = await RideService.createBooking(
-        rideId: rideId,
-        quoteId: null,
-        passengerDetailsList: [
-          {
-            'name': fullName,
-            'phone': '+91 $phone',
-            'email': email,
-          }
-        ],
-        fullName: fullName,
-        lastName: lastName.isNotEmpty ? lastName : firstName,
-        phoneNumber: '+91 $phone',
-        emailID: email,
-        numberOfSeats: bookingSeats,
-        boardingPoint: session.boardingPoint.isNotEmpty ? session.boardingPoint : session.pickup,
-        destination: session.destination,
-        pickup: session.pickup.isNotEmpty ? session.pickup : session.boardingPoint,
-        customerPickupAddress: session.customerPickupAddress.isNotEmpty ? session.customerPickupAddress : session.boardingPoint,
-        customerDropAddress: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : session.destination,
-        customerPickupPincode: session.customerPickupPincode,
-        customerPickupLandmark: session.customerPickupLandmark,
-        custPickupLandmark: session.customerPickupLandmark,
-        customerDropLandmark: session.customerDropAddress.isNotEmpty ? session.customerDropAddress : null,
-        doorstepPickupRequested: session.isDoorstepPickup,
-        isWholeCar: isWholeCar,
-        extraPickupCharge: session.detourCharge,
-        pricePerSeat: session.driver.pricePerSeat,
-        totalAmount: totalFare,
-        paymentMethod: 'PAY_TO_DRIVER',
-        luggage: session.luggage.isNotEmpty ? session.luggage : "1 Medium Bag",
-        status: isAutoApproved ? 'confirmed' : 'pending',
-      );
+    Map<String, dynamic> res;
+    try {
+      res = await submitBooking(session.quoteId.isNotEmpty ? session.quoteId : null);
+
+      // If the first attempt failed with a quote error, retry once without the stale quote id.
+      if (res['success'] != true && (res['message']?.toString().toLowerCase().contains('quote') ?? false)) {
+        res = await submitBooking(null);
+      }
+    } catch (_) {
+      // Network/timeouts must never leave the button spinning.
+      res = {
+        'success': false,
+        'message': 'Could not create the booking. Please check your connection and try again.',
+      };
     }
 
     if (!mounted) return;
@@ -365,7 +345,9 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
         ),
       );
     } else {
-      Navigator.push(
+      // Replace (not push) so back from the awaiting screen cannot land on this filled form
+      // and create a duplicate booking.
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => RideAwaitingConfirmationScreen(
@@ -395,6 +377,7 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -466,8 +449,7 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
                             ),
                           ),
                           inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'^[6-9][0-9]*')),
-                            LengthLimitingTextInputFormatter(10),
+                            _IndianMobileInputFormatter(),
                           ],
                         ),
 
@@ -706,6 +688,21 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
       ),
+    );
+  }
+}
+
+/// Keeps digits only, drops a pasted +91 / 91 / 0 prefix and limits the value to 10 digits.
+class _IndianMobileInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 10 && digits.startsWith('91')) digits = digits.substring(2);
+    if (digits.length > 10 && digits.startsWith('0')) digits = digits.substring(1);
+    if (digits.length > 10) digits = digits.substring(0, 10);
+    return TextEditingValue(
+      text: digits,
+      selection: TextSelection.collapsed(offset: digits.length),
     );
   }
 }

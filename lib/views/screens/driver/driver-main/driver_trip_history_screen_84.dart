@@ -10,7 +10,7 @@ class DriverTripHistoryScreen extends StatefulWidget {
 
 class _DriverTripHistoryScreenState extends State<DriverTripHistoryScreen> {
   int _selectedFilterIndex = 0;
-  final List<String> _filters = ['All', 'Complete', 'Cancelled'];
+  final List<String> _filters = ['All', 'Completed', 'Cancelled'];
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +18,7 @@ class _DriverTripHistoryScreenState extends State<DriverTripHistoryScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -118,7 +119,7 @@ class _DriverTripHistoryScreenState extends State<DriverTripHistoryScreen> {
                                 SizedBox(width: 8),
                                 Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.textMuted),
                                 SizedBox(width: 8),
-                                Text('Secundrabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                Text('Secunderabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                               ],
                             ),
                             const SizedBox(height: 4),

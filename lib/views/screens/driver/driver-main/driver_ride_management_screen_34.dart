@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../services/driver_service.dart';
+import '../../../../services/trip_stage.dart';
 import '../../../../services/ride_service.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/driver_cancel_ride_dialog.dart';
@@ -282,6 +283,7 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -477,7 +479,9 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
         : (_registeredVehicle.isNotEmpty ? _registeredVehicle : '-');
 
     final actions = ride['actions'] is Map ? (ride['actions'] as Map) : null;
-    final canViewTripCard = actions?['canViewTripCard'] ?? true;
+    // A cancelled ride has no trip to share.
+    final canViewTripCard =
+        actions?['canViewTripCard'] != false && _selectedTab != 3 && !TripStage.isCancelled(ride);
     final defaultActionText = _selectedTab == 0
         ? 'Start Ride'
         : (_selectedTab == 2 ? 'Ratings & Reviews' : 'View Details');

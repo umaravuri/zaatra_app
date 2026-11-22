@@ -3,14 +3,18 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/driver_service.dart';
 import '../../authorization/login_screen_115.dart';
+import '../../authorization/otp_verification_screen_26.dart';
+import 'driver_earnings_history_screen_82.dart';
 import 'driver_edit_profile_screen.dart';
 import 'driver_ratings_reviews_screen_113.dart';
+import 'driver_support_help_screen_86.dart';
 
 class DriverProfileSettingsScreen extends StatefulWidget {
   const DriverProfileSettingsScreen({super.key});
@@ -302,7 +306,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: fileName != null ? AppColors.primary.withOpacity(0.1) : Colors.grey.shade200,
+              color: fileName != null ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -378,6 +382,8 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
     bool readOnly = false,
     String? hint,
     String? prefixText,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -393,6 +399,8 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
             controller: controller,
             readOnly: readOnly,
             keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            maxLength: maxLength,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -400,6 +408,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
             ),
             decoration: InputDecoration(
               hintText: hint,
+              counterText: maxLength != null ? '' : null,
               prefixIcon: Icon(icon, color: readOnly ? AppColors.textMuted : AppColors.primary, size: 20),
               prefixText: prefixText,
               prefixStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
@@ -435,6 +444,19 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
     final cityCtrl = TextEditingController(text: _city);
     bool isEditing = false;
     bool isSubmitting = false;
+
+    // Tracks the last OTP-verified phone number for this modal session; a driver must re-verify
+    // via OTP (same flow as login) whenever they change the number to something not yet verified.
+    String verifiedPhone = tenDigits;
+    bool isPhoneVerified = tenDigits.isNotEmpty;
+    phoneCtrl.addListener(() {
+      final current = phoneCtrl.text.trim();
+      if (current != verifiedPhone) {
+        isPhoneVerified = false;
+      } else if (verifiedPhone.isNotEmpty) {
+        isPhoneVerified = true;
+      }
+    });
 
     showModalBottomSheet(
       context: context,
@@ -542,7 +564,18 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                       ),
                     ] else ...[
                       _buildModalTextField(label: 'Full Name', controller: nameCtrl, icon: Icons.person_outline_rounded),
-                      _buildModalTextField(label: 'Phone Number', controller: phoneCtrl, icon: Icons.phone_outlined, keyboardType: TextInputType.phone, prefixText: '+91 '),
+                      _buildModalTextField(
+                        label: 'Phone Number',
+                        controller: phoneCtrl,
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                        prefixText: '+91 ',
+                        maxLength: 10,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'^[6-9][0-9]*')),
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                      ),
                       _buildModalTextField(label: 'Email Address', controller: emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                       _buildModalTextField(label: 'Operating City / State', controller: cityCtrl, icon: Icons.location_city_rounded),
                       _buildModalTextField(label: 'Status (Backend-Managed)', controller: TextEditingController(text: _statusText), icon: Icons.lock_outline_rounded, readOnly: true),
@@ -590,52 +623,130 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                                         return;
                                       }
 
-                                      setModalState(() => isSubmitting = true);
-                                      final res = await DriverService.updatePersonalInfo(
-                                        fullName: name,
-                                        phoneNumber: '+91$phone',
-                                        email: email,
-                                        city: city,
-                                        location: city,
-                                      );
-                                      setModalState(() => isSubmitting = false);
-
-                                      if (res['success'] == true) {
-                                        setState(() {
-                                          _driverName = name;
-                                          _driverPhone = '+91$phone';
-                                          _driverEmail = email;
-                                          _city = city;
-                                          _accountHolder = name;
-                                        });
-
-                                        final prefs = await SharedPreferences.getInstance();
-                                        final cd = phone.replaceAll(RegExp(r'[^0-9]'), '');
-                                        await prefs.setString('user_name_$cd', name);
-                                        await prefs.setString('currentUserName', name);
-                                        await prefs.setString('driver_name_$cd', name);
-                                        await prefs.setString('driver_email_$cd', email);
-                                        await prefs.setString('driver_city_$cd', city);
-                                        await prefs.setString('currentPhone', '+91$phone');
-
-                                        if (!mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Personal Information updated successfully! 🎉'),
-                                            backgroundColor: AppColors.success,
-                                            duration: Duration(seconds: 2),
-                                          ),
+                                      Future<void> persistPersonalInfo() async {
+                                        setModalState(() => isSubmitting = true);
+                                        final res = await DriverService.updatePersonalInfo(
+                                          fullName: name,
+                                          phoneNumber: '+91$phone',
+                                          email: email,
+                                          city: city,
+                                          location: city,
                                         );
-                                        setModalState(() => isEditing = false);
-                                      } else {
+                                        setModalState(() => isSubmitting = false);
+
+                                        if (res['success'] == true) {
+                                          setState(() {
+                                            _driverName = name;
+                                            _driverPhone = '+91$phone';
+                                            _driverEmail = email;
+                                            _city = city;
+                                            _accountHolder = name;
+                                          });
+
+                                          final prefs = await SharedPreferences.getInstance();
+                                          final cd = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                                          await prefs.setString('user_name_$cd', name);
+                                          await prefs.setString('currentUserName', name);
+                                          await prefs.setString('driver_name_$cd', name);
+                                          await prefs.setString('driver_email_$cd', email);
+                                          await prefs.setString('driver_city_$cd', city);
+                                          await prefs.setString('currentPhone', '+91$phone');
+
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Personal Information updated successfully! 🎉'),
+                                              backgroundColor: AppColors.success,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                          setModalState(() => isEditing = false);
+                                        } else {
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(res['message']?.toString() ?? 'Failed to update personal information.'),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      }
+
+                                      // Require OTP re-verification (same API/screen as login) whenever the
+                                      // driver changes their phone number to one not yet verified this session.
+                                      final cleanCurrentPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                                      final bool phoneHasChanged = cleanCurrentPhone.isNotEmpty && cleanCurrentPhone != verifiedPhone;
+
+                                      if (phoneHasChanged && !isPhoneVerified) {
+                                        setModalState(() => isSubmitting = true);
+                                        final formattedPhone = '+91 $phone';
+                                        String otp = '';
+                                        String matchedPhone = formattedPhone;
+                                        bool otpRequested = false;
+                                        try {
+                                          final otpRes = await AuthService.loginInitMobile(phone: formattedPhone);
+                                          if (otpRes['success'] == true) {
+                                            otpRequested = true;
+                                            matchedPhone = otpRes['matchedPhone']?.toString() ?? formattedPhone;
+                                            otp = (otpRes['otp'] ?? (otpRes['data'] is Map ? otpRes['data']['otp'] : null))?.toString() ?? '';
+                                          }
+                                        } catch (_) {}
+                                        setModalState(() => isSubmitting = false);
+
                                         if (!mounted) return;
+
+                                        if (!otpRequested) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Could not send the verification code. Please try again.'),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(res['message']?.toString() ?? 'Failed to update personal information.'),
-                                            backgroundColor: Colors.redAccent,
+                                            content: Row(
+                                              children: [
+                                                const Icon(Icons.mark_email_read_rounded, color: Colors.white),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    otp.isNotEmpty ? 'OTP Sent to $matchedPhone: $otp' : 'OTP sent to $matchedPhone',
+                                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            backgroundColor: AppColors.primary,
+                                            duration: const Duration(seconds: 4),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                           ),
                                         );
+
+                                        final verified = await Navigator.push<bool>(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => OtpVerificationScreen(
+                                              phoneNumber: matchedPhone,
+                                              expectedOtp: otp,
+                                              isPhoneUpdateFlow: true,
+                                              userName: name,
+                                            ),
+                                          ),
+                                        );
+
+                                        if (verified != true) {
+                                          // Verification cancelled or failed — do not save the new phone number.
+                                          return;
+                                        }
+
+                                        isPhoneVerified = true;
+                                        verifiedPhone = cleanCurrentPhone;
                                       }
+
+                                      await persistPersonalInfo();
                                     },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
@@ -1009,7 +1120,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                             title: 'Upload RC Document',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                rcDocName = '$name ($size)';
+                                rcDocName = 'size)';
                                 rcDocFile = fileObj;
                               });
                             },
@@ -1026,7 +1137,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                             title: 'Upload Vehicle Insurance',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                insDocName = '$name ($size)';
+                                insDocName = 'size)';
                                 insDocFile = fileObj;
                               });
                             },
@@ -1297,7 +1408,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                             title: 'Upload DL (Front)',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                dlFrontName = '$name ($size)';
+                                dlFrontName = 'size)';
                                 dlFrontFile = fileObj;
                               });
                             },
@@ -1314,7 +1425,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                             title: 'Upload DL (Back)',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                dlBackName = '$name ($size)';
+                                dlBackName = 'size)';
                                 dlBackFile = fileObj;
                               });
                             },
@@ -1845,9 +1956,11 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
       setState(() => _avatarBytes = bytes);
 
       final prefs = await SharedPreferences.getInstance();
-      final currentPhone = prefs.getString('currentPhone') ?? '+919876543210';
+      final currentPhone = prefs.getString('currentPhone') ?? '';
       final cleanDigits = currentPhone.replaceAll(RegExp(r'[^0-9]'), '');
-      await prefs.setString('driver_avatar_base64_$cleanDigits', base64Encode(bytes));
+      if (cleanDigits.isNotEmpty) {
+        await prefs.setString('driver_avatar_base64_$cleanDigits', base64Encode(bytes));
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1878,6 +1991,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -2071,6 +2185,30 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                         icon: Icons.description_outlined,
                         title: 'Driving License',
                         onTap: _showDrivingLicenseModal,
+                      ),
+                      const Divider(height: 24, color: AppColors.border),
+                      _buildSettingsItem(
+                        context,
+                        icon: Icons.support_agent_rounded,
+                        title: 'Support',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const DriverSupportHelpScreen()),
+                          );
+                        },
+                      ),
+                      const Divider(height: 24, color: AppColors.border),
+                      _buildSettingsItem(
+                        context,
+                        icon: Icons.local_gas_station_rounded,
+                        title: 'Fuel Share',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const DriverEarningsHistoryScreen()),
+                          );
+                        },
                       ),
                       const Divider(height: 24, color: AppColors.border),
                       _buildSettingsItem(

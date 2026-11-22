@@ -10,6 +10,7 @@ import '../../../../services/ride_service.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/driver_conflict_dialogs.dart';
 import '../../../widgets/route_map_webview.dart';
+import '../../../widgets/route_timeline_tile.dart';
 import 'driver_passenger_pin_verification_screen_89.dart';
 import 'driver_trip_shared_screen_94.dart';
 import 'trip_completed_summary_screen_35.dart';
@@ -48,6 +49,9 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
   late List<Map<String, dynamic>> _passengers;
   late List<Map<String, dynamic>> _stops;
   final TextEditingController _broadcastMsgController = TextEditingController();
+  final FocusNode _messageFocus = FocusNode();
+  final GlobalKey _messageCardKey = GlobalKey();
+  String? _messageTargetId; // bookingId of the passenger being messaged, null = everyone
   StartRideLockStatus _startRideStatus = const StartRideLockStatus();
   bool _isRideStarted = false;
   bool _isCompleted = false;
@@ -98,15 +102,15 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     _isRideStarted = _rideStatus == 'in_progress' || _rideStatus == 'started';
     _hasArrived = _rideStatus == 'arrived' || _isRideStarted || _isCompleted;
 
-    _rideId = widget.rideId ?? (data['_id'] ?? data['rideId'] ?? data['id'] ?? 'RD-101').toString();
+    _rideId = widget.rideId ?? (data['_id'] ?? data['rideId'] ?? data['id'] ?? '').toString();
     final rawOrigin = widget.origin ?? data['from'] ?? data['pickupLocation'];
     _origin = (rawOrigin != null && rawOrigin.toString().isNotEmpty && rawOrigin != 'Origin')
         ? rawOrigin.toString()
-        : 'Madhapur, Hyderabad';
+        : '';
     final rawDest = widget.destination ?? data['to'] ?? data['destinationLocation'];
     _destination = (rawDest != null && rawDest.toString().isNotEmpty && rawDest != 'Destination')
         ? rawDest.toString()
-        : 'Secunderabad';
+        : '';
     _totalDistance = widget.totalDistance ?? data['distance'] ?? '';
 
     // Initialize stops dynamically from rideData without hardcoded fallbacks
@@ -116,7 +120,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
       _stops = (data['routePlan'] as List).map<Map<String, dynamic>>((item) {
         final loc = (item['location'] ?? item['station'] ?? '').toString();
         return {
-          'time': item['time'] ?? '06:00 AM',
+          'time': item['time'] ?? '--',
           'station': loc.split(',').first,
           'isStart': item['type'] == 'start' || item['isStart'] == true,
           'type': item['type'] ?? 'pickup',
@@ -125,16 +129,16 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
       }).toList();
     } else if (data['selectedCities'] is List && (data['selectedCities'] as List).isNotEmpty) {
       final list = <Map<String, dynamic>>[];
-      list.add({'time': data['departureTime'] ?? '06:00 AM', 'station': _origin.split(',').first, 'isStart': true});
+      list.add({'time': data['departureTime'] ?? '--', 'station': _origin.split(',').first, 'isStart': true});
       for (final city in data['selectedCities']) {
         list.add({'time': '--:--', 'station': city.toString().split(',').first, 'isStart': false});
       }
-      list.add({'time': data['arrivalTime'] ?? '10:30 AM', 'station': _destination.split(',').first, 'isStart': false});
+      list.add({'time': data['arrivalTime'] ?? '--', 'station': _destination.split(',').first, 'isStart': false});
       _stops = list;
     } else {
       _stops = [
-        {'time': data['departureTime'] ?? '06:00 AM', 'station': _origin.split(',').first, 'isStart': true},
-        {'time': data['arrivalTime'] ?? '10:30 AM', 'station': _destination.split(',').first, 'isStart': false},
+        {'time': data['departureTime'] ?? '--', 'station': _origin.split(',').first, 'isStart': true},
+        {'time': data['arrivalTime'] ?? '--', 'station': _destination.split(',').first, 'isStart': false},
       ];
     }
 
@@ -187,7 +191,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
         if (res['timeline'] is List && (res['timeline'] as List).isNotEmpty) {
           _stops = (res['timeline'] as List).map<Map<String, dynamic>>((item) {
             return {
-              'time': item['time'] ?? '09:00',
+              'time': item['time'] ?? '--',
               'station': item['location'] ?? item['station'] ?? '',
               'isStart': item['isStart'] == true || item['type'] == 'start',
               'type': item['type'],
@@ -217,13 +221,14 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
               'id': p['passengerId'] ?? 'p${p['passengerIndex'] ?? (loadedPassengers.length + 1)}',
               'bookingId': p['bookingId'] ?? 'BK-${loadedPassengers.length + 1}',
               'name': p['name'] ?? 'Passenger',
+              'phone': _extractPhone(p),
+              'userId': (p['userId'] ?? p['customerId'] ?? p['passengerUserId'] ?? '').toString(),
               'title': 'Passenger ${p['passengerIndex'] ?? (loadedPassengers.length + 1)}',
               'route': p['segment'] ?? p['route'] ?? '',
               'time': p['timeWindow'] ?? '',
               'pickup': p['from'] ?? _origin,
               'dropoff': p['to'] ?? _destination,
               'seatNumber': sNum,
-              'expectedPin': p['boardingPin'] ?? p['pin'] ?? '',
               'isBoarded': p['isBoarded'] == true,
             });
           }
@@ -279,13 +284,14 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                 'id': bId,
                 'bookingId': bId,
                 'name': b['userName'] ?? b['passengerName'] ?? b['customerName'] ?? 'Passenger ${i + 1}',
+                'phone': _extractPhone(b),
+                'userId': (b['userId'] ?? b['customerId'] ?? (b['user'] is Map ? b['user']['_id'] ?? b['user']['id'] : null) ?? '').toString(),
                 'title': 'Passenger ${loadedPassengers.length + 1}',
                 'route': '${(b['pickupLocation'] ?? b['from'] ?? _origin).toString().split(',').first} - ${(b['destinationLocation'] ?? b['to'] ?? _destination).toString().split(',').first}',
                 'time': b['departureTime'] ?? '',
                 'pickup': b['pickupLocation'] ?? b['from'] ?? _origin,
                 'dropoff': b['destinationLocation'] ?? b['to'] ?? _destination,
                 'seatNumber': b['seatsBooked'] ?? b['seats'] ?? (i + 1),
-                'expectedPin': b['pin'] ?? b['boardingPin'] ?? '',
                 'isBoarded': status == 'boarded' || status == 'completed',
               });
             }
@@ -308,7 +314,60 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
   @override
   void dispose() {
     _broadcastMsgController.dispose();
+    _messageFocus.dispose();
     super.dispose();
+  }
+
+  /// Pulls a phone number out of whatever shape the backend sent for a passenger
+  /// or booking (flat keys, or nested customer / passenger / user maps).
+  static String _extractPhone(Map<dynamic, dynamic> p) {
+    const keys = [
+      'phone', 'phoneNumber', 'mobile', 'mobileNumber',
+      'customerPhone', 'passengerPhone', 'userPhone', 'contact',
+    ];
+    String pick(Map<dynamic, dynamic> m) {
+      for (final k in keys) {
+        final v = m[k]?.toString().trim() ?? '';
+        if (v.isNotEmpty) return v;
+      }
+      return '';
+    }
+
+    final direct = pick(p);
+    if (direct.isNotEmpty) return direct;
+    for (final nest in ['customer', 'passenger', 'user']) {
+      final n = p[nest];
+      if (n is Map) {
+        final v = pick(n);
+        if (v.isNotEmpty) return v;
+      }
+    }
+    return '';
+  }
+
+  Future<void> _callPassenger(Map<String, dynamic> passenger) async {
+    final raw = (passenger['phone'] ?? _extractPhone(passenger)).toString();
+    final number = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (number.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Phone number is not available for ${passenger['name'] ?? 'this passenger'}.')),
+      );
+      return;
+    }
+    try {
+      final launched = await launchUrl(Uri(scheme: 'tel', path: number), mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _verifyPassengerPin(int index) async {
@@ -338,7 +397,6 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
               : 'Passenger',
           pickupLocation: passenger['pickup'] ?? _origin,
           dropoffLocation: passenger['dropoff'] ?? _destination,
-          expectedPin: passenger['expectedPin'] ?? '',
           boardingSeat: passengerSeat,
           totalSeats: 4,
           bookedSeats: bookedSeatsList.isNotEmpty ? bookedSeatsList : [passengerSeat],
@@ -355,7 +413,80 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     }
   }
 
+  /// The passenger currently selected for a direct message (null = message everyone).
+  Map<String, dynamic>? get _messageTarget {
+    final id = _messageTargetId;
+    if (id == null) return null;
+    for (final p in _passengers) {
+      if ((p['bookingId'] ?? p['id'] ?? '').toString() == id) return p;
+    }
+    return null; // passenger no longer on the ride
+  }
+
+  String _passengerLabel(Map<String, dynamic> p) {
+    final n = (p['name'] ?? '').toString().trim();
+    return n.isEmpty ? 'passenger' : n;
+  }
+
+  void _selectMessageTarget(Map<String, dynamic> passenger) {
+    setState(() => _messageTargetId = (passenger['bookingId'] ?? passenger['id'] ?? '').toString());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _messageCardKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          alignment: 0.3,
+        );
+      }
+      _messageFocus.requestFocus();
+    });
+  }
+
+  Future<void> _sendPassengerMessage(Map<String, dynamic> target) async {
+    final text = _broadcastMsgController.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please type a message before sending.')),
+      );
+      return;
+    }
+    final name = _passengerLabel(target);
+    final res = await RideService.sendPassengerMessage(
+      rideId: _rideId,
+      bookingId: (target['bookingId'] ?? '').toString(),
+      passengerId: (target['userId'] ?? target['id'] ?? '').toString(),
+      message: text,
+    );
+    if (!mounted) return;
+    if (res['success'] == true) {
+      _broadcastMsgController.clear();
+      FocusScope.of(context).unfocus();
+      setState(() => _messageTargetId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Message sent to $name.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    } else {
+      // Keep the typed text so nothing is lost when the send fails.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Could not send the message to $name.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _sendBroadcastMessage() async {
+    final target = _messageTarget;
+    if (target != null) {
+      await _sendPassengerMessage(target);
+      return;
+    }
     final text = _broadcastMsgController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -845,8 +976,8 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
           origin: _origin.split(',').first,
           destination: _destination.split(',').first,
           dateDisplay: _formatRideDateDisplay(includeDistance: false),
-          fuelSaved: summary['formattedFuelShare'] ?? '₹ 1,074',
-          paymentMode: 'Online',
+          fuelSaved: summary['formattedFuelShare'] ?? '--',
+          paymentMode: summary['paymentMode']?.toString() ?? '--',
           coTravelers: '${summary['totalPassengersBoarded'] ?? _passengers.length}',
           summaryData: summary,
         ),
@@ -908,11 +1039,12 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
       context,
       MaterialPageRoute(
         builder: (context) => DriverTripSharedScreen(
-          stage: 'during_ride',
+          // The card follows the ride: not started -> before ride, started -> during, done -> completed.
+          stage: _isCompleted ? 'summary' : (_isRideStarted ? 'during_ride' : 'before_ride'),
           rideId: _rideId,
           routeTimeline: _stops,
           seatsAvailable: seatsList,
-          fuelContribution: widget.rideData?['price'] != null ? '₹${widget.rideData!['price']}' : '₹358',
+          fuelContribution: widget.rideData?['price'] != null ? '₹${widget.rideData!['price']}' : null,
           driverName: driverName,
           driverCode: driverCode,
           bookingSeatZaatraId: _rideId,
@@ -996,7 +1128,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                     final isLast = i == _stops.length - 1;
 
                     return _buildWaypointTile(
-                      time: stop['time'] ?? '09:00',
+                      time: stop['time'] ?? '--',
                       station: stop['station'] ?? stop['location'] ?? '',
                       isStart: isStart,
                       isLast: isLast,
@@ -1067,39 +1199,97 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
 
                   const SizedBox(height: 20),
 
-                  // Message Input Box matching 88.png
+                  // Message Input Box matching 88.png (compact: purple card + grey field only)
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    key: _messageCardKey,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7F5FE),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_messageTarget != null) ...[
+                          Container(
+                            padding: const EdgeInsets.only(left: 10, right: 4, top: 2, bottom: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'To: ${_passengerLabel(_messageTarget!)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => setState(() => _messageTargetId = null),
+                                  customBorder: const CircleBorder(),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(4),
+                                    child: Icon(Icons.close_rounded, size: 16, color: AppColors.textSecondary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         TextField(
                           controller: _broadcastMsgController,
-                          decoration: const InputDecoration(
-                            hintText: 'Type here .......!',
-                            hintStyle: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                            border: InputBorder.none,
+                          focusNode: _messageFocus,
+                          minLines: 2,
+                          maxLines: 4,
+                          keyboardType: TextInputType.multiline,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: 'Type here...',
+                            hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            filled: true,
+                            fillColor: const Color(0xFFEFECF6),
                             isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 1),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               backgroundColor: Colors.white,
                               side: const BorderSide(color: AppColors.border),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
                             ),
                             onPressed: _sendBroadcastMessage,
-                            child: const Text(
-                              'Send Message all',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            child: Text(
+                              _messageTarget != null
+                                  ? 'Message ${_passengerLabel(_messageTarget!)}'
+                                  : 'Message all passengers',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
                             ),
                           ),
                         ),
@@ -1259,8 +1449,8 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                               origin: _origin.split(',').first,
                               destination: _destination.split(',').first,
                               dateDisplay: _formatRideDateDisplay(includeDistance: false),
-                              fuelSaved: '₹ 1,074',
-                              paymentMode: 'Online',
+                              fuelSaved: '--',
+                              paymentMode: '--',
                               coTravelers: '',
                               summaryData: const {},
                             ),
@@ -1318,64 +1508,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     required bool isStart,
     required bool isLast,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Natural width time (works on all screen resolutions)
-          Center(
-            child: Text(
-              time,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // 2. Timeline marker & auto-stretching connecting line
-          Column(
-            children: [
-              isStart
-                  ? const Icon(Icons.directions_car_rounded, color: Colors.redAccent, size: 18)
-                  : Container(
-                      width: 10,
-                      height: 10,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.border,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: AppColors.border,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          // 3. Station text claiming 100% of remaining width on any screen resolution
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16.0),
-              child: Text(
-                station,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return RouteTimelineTile(time: time, station: station, isStart: isStart, isLast: isLast);
   }
 
   Widget _buildPassengerCard(int index) {
@@ -1468,11 +1601,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                   Icons.chat_bubble_outline_rounded,
                   const Color(0xFFFFF8E1),
                   const Color(0xFF8D6E63),
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Opening chat with ${passenger['name']}...')),
-                    );
-                  },
+                  () => _selectMessageTarget(passenger),
                 ),
               ),
               const SizedBox(width: 6),
@@ -1480,13 +1609,9 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                 child: _buildSmallButton(
                   'Call',
                   Icons.phone_outlined,
-                  const Color(0xFFFFF8E1),
-                  const Color(0xFF8D6E63),
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Calling ${passenger['name']}...')),
-                    );
-                  },
+                  (passenger['phone'] ?? '').toString().trim().isEmpty ? Colors.grey.shade100 : const Color(0xFFFFF8E1),
+                  (passenger['phone'] ?? '').toString().trim().isEmpty ? Colors.grey.shade500 : const Color(0xFF8D6E63),
+                  () => _callPassenger(passenger),
                 ),
               ),
               const SizedBox(width: 6),

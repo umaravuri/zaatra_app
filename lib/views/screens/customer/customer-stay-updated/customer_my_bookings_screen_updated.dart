@@ -66,7 +66,7 @@ class _CustomerMyBookingsScreenUpdatedState
   String get _formattedPendingTime {
     final m = _pendingSecondsRemaining ~/ 60;
     final s = _pendingSecondsRemaining % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return '${s.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -88,6 +88,7 @@ class _CustomerMyBookingsScreenUpdatedState
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -246,7 +247,7 @@ class _CustomerMyBookingsScreenUpdatedState
                         const SizedBox(height: 4),
                         const Text.rich(
                           TextSpan(
-                            text: 'Conformed , ',
+                            text: 'Confirmed, ',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE65100)),
                             children: [
                               TextSpan(text: 'Resort', style: TextStyle(color: Color(0xFF1E1B1E))),
@@ -432,7 +433,7 @@ class _CustomerMyBookingsScreenUpdatedState
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: const [
-                  Text('Secundrabad', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
+                  Text('Secunderabad', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
                   SizedBox(height: 2),
                   Text('22 May . 2024', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
                   SizedBox(height: 2),
@@ -783,13 +784,13 @@ class _CustomerMyBookingsScreenUpdatedState
 
               const SizedBox(height: 12),
 
-              // Destination & EAT Row
+              // Destination & ETA Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const [
                   Text('Destination', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
                   Text('- - - - - - - - - -', style: TextStyle(color: Color(0xFF5B3AA8), fontWeight: FontWeight.bold)),
-                  Text('EAT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
+                  Text('ETA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
                 ],
               ),
               const SizedBox(height: 2),
@@ -808,8 +809,8 @@ class _CustomerMyBookingsScreenUpdatedState
 
               const SizedBox(height: 18),
 
-              // Near by Heritages List
-              const Text('Near by Heritages', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
+              // Nearby Heritages List
+              const Text('Nearby Heritages', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
               const SizedBox(height: 8),
               _buildNearBySectionHeader('Arriving Soon . stay need hyderabad', '10 Stay', 'Arrived in 74 mins'),
               const SizedBox(height: 8),
@@ -819,8 +820,8 @@ class _CustomerMyBookingsScreenUpdatedState
 
               const SizedBox(height: 18),
 
-              // Near by Banquet Halls List
-              const Text('Near by Banquet Halls', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
+              // Nearby Banquet Halls List
+              const Text('Nearby Banquet Halls', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1E1B1E))),
               const SizedBox(height: 8),
               _buildNearBySectionHeader('Arriving Soon . stay need hyderabad', '10 Events halls', 'Arrived in 74 mins'),
               const SizedBox(height: 8),
@@ -836,7 +837,7 @@ class _CustomerMyBookingsScreenUpdatedState
               _buildLiveStop('9 : 00', 'Madhapur', isCar: true),
               _buildLiveStop('10 : 00', 'Ameerpet'),
               _buildLiveStop('12 : 00', 'Begumpet'),
-              _buildLiveStop('01 : 00', 'Secundrabad', isLast: true),
+              _buildLiveStop('01 : 00', 'Secunderabad', isLast: true),
 
               const SizedBox(height: 18),
 
@@ -935,7 +936,7 @@ class _CustomerMyBookingsScreenUpdatedState
             ],
           ),
           const SizedBox(height: 8),
-          const Text('900 Years old fort about the godavari valley open', style: TextStyle(fontSize: 11, color: Color(0xFF757575))),
+          const Text('900-year-old fort in the Godavari valley', style: TextStyle(fontSize: 11, color: Color(0xFF757575))),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -1110,7 +1111,7 @@ class _CustomerMyBookingsScreenUpdatedState
                     Text('14 Aug - 15 Aug (1 night )', style: TextStyle(fontSize: 11.5, color: Color(0xFF757575))),
                     Text('4 rooms, 4 adults, 0 children\'s.', style: TextStyle(fontSize: 11, color: Color(0xFF757575))),
                     SizedBox(height: 2),
-                    Text('Conformed , Resort', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                    Text('Confirmed, Resort', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
                   ],
                 ),
               ),
@@ -1514,7 +1515,7 @@ class _CustomerMyBookingsScreenUpdatedState
             children: const [
               Text('Madhapur\n20 May . 2024\n11 : 00 AM', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               Text('- - - - - - - -', style: TextStyle(color: Color(0xFFBDBDBD))),
-              Text('Secundrabad\n22 May . 2024\n10 : 00 PM', textAlign: TextAlign.end, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Text('Secunderabad\n22 May . 2024\n10 : 00 PM', textAlign: TextAlign.end, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 12),
@@ -1701,7 +1702,7 @@ class _CustomerMyBookingsScreenUpdatedState
             children: const [
               Text('Madhapur\n20 May . 2024\n11 : 00 AM', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               Text('- - - - - - - -', style: TextStyle(color: Color(0xFFBDBDBD))),
-              Text('Secundrabad\n22 May . 2024\n10 : 00 PM', textAlign: TextAlign.end, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Text('Secunderabad\n22 May . 2024\n10 : 00 PM', textAlign: TextAlign.end, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 12),

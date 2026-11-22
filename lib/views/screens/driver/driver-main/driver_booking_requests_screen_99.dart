@@ -8,7 +8,8 @@ import '../../../widgets/driver_decline_reason_modal.dart';
 import '../../../widgets/driver_detour_decision_dialog.dart';
 import 'driver_my_ride_screen_30.dart';
 
-class DriverBookingRequestsScreen extends StatefulWidget {
+/// Standalone "Booking Requests" screen (app bar + background around the view).
+class DriverBookingRequestsScreen extends StatelessWidget {
   final int initialTabIndex;
 
   const DriverBookingRequestsScreen({
@@ -17,12 +18,74 @@ class DriverBookingRequestsScreen extends StatefulWidget {
   });
 
   @override
-  State<DriverBookingRequestsScreen> createState() => _DriverBookingRequestsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Booking Requests',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Bottom Background Graphic
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/image 31.png',
+                  fit: BoxFit.fitWidth,
+                  alignment: Alignment.bottomCenter,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            DriverBookingRequestsView(initialTabIndex: initialTabIndex),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScreen> {
+/// The booking requests content (Booking request / Accepted / Denied tabs and the
+/// request cards, with accept / decline). Used by the standalone screen above and
+/// directly inside Messages > Requests.
+class DriverBookingRequestsView extends StatefulWidget {
+  final int initialTabIndex;
+
+  /// Called with the number of pending booking requests whenever it is (re)loaded.
+  final ValueChanged<int>? onCountsChanged;
+
+  const DriverBookingRequestsView({
+    super.key,
+    this.initialTabIndex = 0,
+    this.onCountsChanged,
+  });
+
+  @override
+  State<DriverBookingRequestsView> createState() => _DriverBookingRequestsViewState();
+}
+
+class _DriverBookingRequestsViewState extends State<DriverBookingRequestsView> {
   late int _selectedTabIndex; // 0: booking_requests, 1: confirmed, 2: denied
   bool _isLoading = true;
+
+  /// Guards accept/decline so a double tap cannot fire two API calls.
+  bool _isActioning = false;
 
   final List<String> _tabIds = [
     'booking_requests',
@@ -66,6 +129,7 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
           _emptyDescription = responseObj.emptyStateDescription;
           _isLoading = false;
         });
+        widget.onCountsChanged?.call(_counts.bookingRequests);
       }
     } catch (_) {
       if (mounted) {
@@ -101,7 +165,8 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || _isActioning) return;
+    _isActioning = true;
 
     try {
       final res = await DriverService.acceptBookingRequest(bookingId: item.bookingId);
@@ -131,6 +196,8 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
         );
       }
+    } finally {
+      _isActioning = false;
     }
   }
 
@@ -142,19 +209,9 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
 
     if (result == null || result.isEmpty) return;
 
+    if (_isActioning) return;
+    _isActioning = true;
     try {
-      final bId = item.bookingId;
-      if (bId.isNotEmpty) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final declinedList = prefs.getStringList('driver_declined_booking_ids') ?? [];
-          if (!declinedList.contains(bId)) {
-            declinedList.add(bId);
-            await prefs.setStringList('driver_declined_booking_ids', declinedList);
-          }
-        } catch (_) {}
-      }
-
       final res = await DriverService.declineBookingRequest(
         bookingId: item.bookingId,
         reason: result,
@@ -163,6 +220,19 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
       if (!mounted) return;
 
       if (res['success'] == true) {
+        // Hide the request locally only after the server confirmed the decline.
+        final bId = item.bookingId;
+        if (bId.isNotEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final declinedList = prefs.getStringList('driver_declined_booking_ids') ?? [];
+            if (!declinedList.contains(bId)) {
+              declinedList.add(bId);
+              await prefs.setStringList('driver_declined_booking_ids', declinedList);
+            }
+          } catch (_) {}
+        }
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(res['message']?.toString() ?? 'Booking request declined and moved to Denied.'),
@@ -185,6 +255,8 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
         );
       }
+    } finally {
+      _isActioning = false;
     }
   }
 
@@ -371,19 +443,8 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                         ],
                       ),
 
-                      if (detail.security.boardingPin.isNotEmpty) ...[
-                        const SizedBox(height: 18),
-                        const Text('Security PIN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF3EDF7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('PIN: ${detail.security.boardingPin}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 2)),
-                        ),
-                      ],
+                      // The boarding PIN is for the passenger to tell the driver; the driver's app
+                      // must never display it (the server verifies the PIN the driver types).
 
                       const SizedBox(height: 28),
 
@@ -444,89 +505,50 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Booking Requests',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.white,
-      ),
-      body: SafeArea(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Bottom Background Graphic
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: Image.asset(
-                  'assets/images/image 31.png',
-                  fit: BoxFit.fitWidth,
-                  alignment: Alignment.bottomCenter,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
+    return Column(
+      children: [
+        // Horizontal Segmented Tabs Header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(_tabTitles.length, (index) {
+                final title = _tabTitles[index];
+                final count = _getTabCount(index);
+                final label = (index == 0 && count > 0) ? '$title ($count)' : title;
+
+                return Padding(
+                  padding: EdgeInsets.only(right: index < _tabTitles.length - 1 ? 8.0 : 0.0),
+                  child: _buildTabButton(label, index),
+                );
+              }),
             ),
-            Column(
-              children: [
-                // Horizontal Segmented Tabs Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: List.generate(_tabTitles.length, (index) {
-                        final title = _tabTitles[index];
-                        final count = _getTabCount(index);
-                        final label = (index == 0 && count > 0)
-                            ? '$title ($count)'
-                            : title;
+          ),
+        ),
 
-                        return Padding(
-                          padding: EdgeInsets.only(right: index < _tabTitles.length - 1 ? 8.0 : 0.0),
-                          child: _buildTabButton(label, index),
-                        );
-                      }),
-                    ),
-                  ),
-                ),
-
-                // Main Booking Requests List or Empty State
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                      : RefreshIndicator(
-                          color: AppColors.primary,
-                          onRefresh: _fetchTabData,
-                          child: _isCurrentTabEmpty()
-                              ? _buildEmptyState()
-                              : ListView.separated(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
-                                  itemCount: _bookingItems.length,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                                  itemBuilder: (context, index) {
-                                    return _buildBookingCard(_bookingItems[index]);
-                                  },
-                                ),
+        // Main Booking Requests List or Empty State
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: _fetchTabData,
+                  child: _isCurrentTabEmpty()
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+                          itemCount: _bookingItems.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            return _buildBookingCard(_bookingItems[index]);
+                          },
                         ),
                 ),
-              ],
-            ),
-          ],
         ),
-      ),
+      ],
     );
   }
 
@@ -629,10 +651,15 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                item.customerName,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              Flexible(
+                                child: Text(
+                                  item.customerName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               if (item.isConfirmed)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

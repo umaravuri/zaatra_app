@@ -241,9 +241,22 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     });
 
     final otp = (loginInitResult['otp'] ?? (loginInitResult['data'] is Map ? loginInitResult['data']['otp'] : null))?.toString() ??
-        '123456';
+        '';
 
     if (!mounted) return;
+
+    if (loginInitResult['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            loginInitResult['message']?.toString() ??
+                'Could not send the verification code. Please try again.',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -252,7 +265,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Registration Successful! OTP: $otp',
+                otp.isNotEmpty ? 'Registration Successful! OTP: $otp' : 'Registration Successful! OTP sent.',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),

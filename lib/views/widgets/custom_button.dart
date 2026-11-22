@@ -11,6 +11,9 @@ class CustomButton extends StatelessWidget {
   final Color? textColor;
   final double? fontSize;
 
+  /// Label weight; defaults to semi-bold like every other button.
+  final FontWeight fontWeight;
+
   const CustomButton({
     super.key,
     required this.text,
@@ -21,6 +24,7 @@ class CustomButton extends StatelessWidget {
     this.backgroundColor,
     this.textColor,
     this.fontSize,
+    this.fontWeight = FontWeight.w600,
   });
 
   @override
@@ -62,7 +66,7 @@ class CustomButton extends StatelessWidget {
                         style: TextStyle(
                           color: textColor ?? AppColors.primary,
                           fontSize: fontSize ?? 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: fontWeight,
                         ),
                       ),
                     ),
@@ -109,7 +113,7 @@ class CustomButton extends StatelessWidget {
                       style: TextStyle(
                         color: textColor ?? Colors.white,
                         fontSize: fontSize ?? 16,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: fontWeight,
                       ),
                     ),
                   ),

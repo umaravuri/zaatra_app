@@ -1,7 +1,46 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
+/// Lifecycle state of a booking, derived once from the raw API `status`.
+/// Denied / declined / rejected bookings are folded into [cancelled].
+enum BookingState { upcoming, pending, active, completed, cancelled, unknown }
+
+/// Classifies a raw backend status string using whole-word tokens, so that
+/// e.g. "inactive", "not_started", "incomplete" or "delivered" are not
+/// mistaken for active / started / complete / live.
+BookingState classifyBookingStatus(String raw) {
+  final tokens = raw
+      .toLowerCase()
+      .split(RegExp(r'[^a-z]+'))
+      .where((t) => t.isNotEmpty)
+      .toSet();
+  bool has(List<String> words) => words.any(tokens.contains);
+
+  if (has(['cancel', 'cancelled', 'canceled', 'denied', 'declined', 'decline', 'rejected', 'reject'])) {
+    return BookingState.cancelled;
+  }
+  if (has(['completed', 'complete', 'finished', 'ended', 'done'])) {
+    return BookingState.completed;
+  }
+  if (tokens.contains('not') || tokens.contains('yet')) {
+    return BookingState.upcoming; // e.g. not_started
+  }
+  if (has(['active', 'ongoing', 'started', 'boarding', 'live']) ||
+      (tokens.contains('in') && tokens.contains('progress')) ||
+      tokens.contains('inprogress')) {
+    return BookingState.active;
+  }
+  if (has(['pending', 'requested', 'awaiting', 'waiting', 'accepted', 'new'])) {
+    return BookingState.pending;
+  }
+  if (has(['confirmed', 'conformed', 'confirm', 'scheduled', 'schedule', 'booked', 'upcoming'])) {
+    return BookingState.upcoming;
+  }
+  return BookingState.unknown;
+}
+
 class CustomerBookingItem {
+  final BookingState state;
   final String id;
   final String bookingId;
   final String category; // 'Stay' | 'Ride' | 'Heritage Sites' | 'Banquet Halls'
@@ -30,7 +69,12 @@ class CustomerBookingItem {
   final String destinationLocation;
   final Map<String, dynamic>? driverInfo;
 
+  /// Canonical id for every API call (pass, track, cancel, rate): the
+  /// `:bookingId` the backend endpoints are documented with, falling back to `id`.
+  String get refId => bookingId.isNotEmpty ? bookingId : id;
+
   CustomerBookingItem({
+    this.state = BookingState.unknown,
     required this.id,
     required this.bookingId,
     required this.category,
@@ -108,15 +152,17 @@ class CustomerBookingItem {
     String title = json['title']?.toString() ?? '';
     if (title.isEmpty) {
       if (detectedCategory == 'Ride') {
-        final pickup = json['pickup'] ?? json['pickupLocation'] ?? json['from'] ?? 'Madhapur';
-        final drop = json['destination'] ?? json['dropoffLocation'] ?? json['to'] ?? 'Secundrabad';
-        title = '$pickup ➔ $drop';
+        final pickup = (json['pickup'] ?? json['pickupLocation'] ?? json['from'] ?? '').toString();
+        final drop = (json['destination'] ?? json['dropoffLocation'] ?? json['to'] ?? '').toString();
+        title = (pickup.isNotEmpty && drop.isNotEmpty)
+            ? '$pickup ➔ $drop'
+            : (drop.isNotEmpty ? drop : (pickup.isNotEmpty ? pickup : 'Ride booking'));
       } else if (detectedCategory == 'Stay') {
-        title = json['hotelName'] ?? json['propertyName'] ?? 'Zaatra Grand Stay';
+        title = (json['hotelName'] ?? json['propertyName'] ?? 'Stay booking').toString();
       } else if (detectedCategory == 'Heritage Sites') {
-        title = json['placeName'] ?? json['monumentName'] ?? 'Heritage Guided Tour';
+        title = (json['placeName'] ?? json['monumentName'] ?? 'Heritage tour').toString();
       } else {
-        title = json['hallName'] ?? json['venueName'] ?? 'Zaatra Royal Banquet Hall';
+        title = (json['hallName'] ?? json['venueName'] ?? 'Banquet booking').toString();
       }
     }
 
@@ -128,15 +174,15 @@ class CustomerBookingItem {
         final driverName = json['driverName'] ?? (json['driver'] is Map ? json['driver']['name'] : null);
         subtitle = driverName != null ? '$formattedDate • Driver: $driverName' : '$formattedDate • Confirmed Ride';
       } else if (detectedCategory == 'Stay') {
-        final checkIn = json['checkIn'] ?? json['checkInDate'] ?? '25 Aug';
-        final checkOut = json['checkOut'] ?? json['checkOutDate'] ?? '28 Aug';
-        subtitle = '$checkIn - $checkOut • Confirmed Stay';
+        final checkIn = json['checkIn'] ?? json['checkInDate'];
+        final checkOut = json['checkOut'] ?? json['checkOutDate'];
+        subtitle = (checkIn != null && checkOut != null) ? '$checkIn - $checkOut' : 'Stay booking';
       } else if (detectedCategory == 'Heritage Sites') {
-        final timeStr = json['time'] ?? '10:00 AM';
-        subtitle = 'Tour Timing: $timeStr • Entry Pass';
+        final timeStr = json['time'];
+        subtitle = timeStr != null ? 'Tour Timing: $timeStr' : 'Heritage tour';
       } else {
-        final guests = json['guests'] ?? json['capacity'] ?? '250+ Guests';
-        subtitle = 'Event Reservation • $guests';
+        final guests = json['guests'] ?? json['capacity'];
+        subtitle = guests != null ? 'Event Reservation • $guests guests' : 'Event Reservation';
       }
     } else if (subtitle.contains('T') && subtitle.contains('Z')) {
       final isoRegex = RegExp(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?');
@@ -158,35 +204,51 @@ class CustomerBookingItem {
       }
     }
     if (priceStr.isEmpty) {
-      priceStr = detectedCategory == 'Banquet Halls'
-          ? '₹75,000'
-          : detectedCategory == 'Stay'
-              ? '₹4,500'
-              : detectedCategory == 'Ride'
-                  ? '₹650'
-                  : '₹350';
+      priceStr = '—'; // never invent a price
     }
 
     // Status & Color
-    final rawStatus = json['status']?.toString() ?? 'Confirmed';
+    // No invented default: a booking without a status is "unknown", not "Confirmed".
+    final rawStatus = json['status']?.toString() ?? '';
+    final badgeText = json['statusBadge'] is Map ? (json['statusBadge'] as Map)['text']?.toString() ?? '' : '';
+    var bookingState = classifyBookingStatus(rawStatus);
+    if (bookingState == BookingState.unknown && badgeText.isNotEmpty) {
+      bookingState = classifyBookingStatus(badgeText);
+    }
+    final lowerRaw = rawStatus.toLowerCase();
     Color statusColor = AppColors.success;
-    String displayStatus = rawStatus;
+    String displayStatus = rawStatus.isEmpty ? 'Status unavailable' : rawStatus;
 
-    if (rawStatus.toLowerCase().contains('confirm') || rawStatus.toLowerCase().contains('booked')) {
-      displayStatus = 'Confirmed ✅';
-      statusColor = AppColors.success;
-    } else if (rawStatus.toLowerCase().contains('schedule') || rawStatus.toLowerCase().contains('pending')) {
-      displayStatus = 'Scheduled ⏳';
-      statusColor = const Color(0xFFF57C00); // Orange per API specification
-    } else if (rawStatus.toLowerCase().contains('complete')) {
-      displayStatus = 'Completed';
-      statusColor = const Color(0xFF64748B);
-    } else if (rawStatus.toLowerCase().contains('denied') || rawStatus.toLowerCase().contains('decline') || rawStatus.toLowerCase().contains('reject')) {
-      displayStatus = 'Denied ⛔';
-      statusColor = const Color(0xFFD32F2F);
-    } else if (rawStatus.toLowerCase().contains('cancel')) {
-      displayStatus = 'Cancelled ❌';
-      statusColor = Colors.red;
+    switch (bookingState) {
+      case BookingState.cancelled:
+        final denied = lowerRaw.contains('denied') || lowerRaw.contains('decline') || lowerRaw.contains('reject');
+        displayStatus = denied ? 'Denied ⛔' : 'Cancelled ❌';
+        statusColor = denied ? const Color(0xFFD32F2F) : Colors.red;
+        break;
+      case BookingState.completed:
+        displayStatus = 'Completed';
+        statusColor = const Color(0xFF64748B);
+        break;
+      case BookingState.active:
+        displayStatus = 'Ride Active 🚗';
+        statusColor = AppColors.primary;
+        break;
+      case BookingState.pending:
+        displayStatus = 'Pending ⏳';
+        statusColor = const Color(0xFFF57C00); // Orange per API specification
+        break;
+      case BookingState.upcoming:
+        if (lowerRaw.contains('schedule')) {
+          displayStatus = 'Scheduled ⏳';
+          statusColor = const Color(0xFFF57C00);
+        } else {
+          displayStatus = 'Confirmed ✅';
+          statusColor = AppColors.success;
+        }
+        break;
+      case BookingState.unknown:
+        statusColor = const Color(0xFF64748B);
+        break;
     }
 
     // Status badge parsing per API 6
@@ -244,6 +306,7 @@ class CustomerBookingItem {
     }
 
     return CustomerBookingItem(
+      state: bookingState,
       id: id,
       bookingId: bookingId,
       category: detectedCategory,

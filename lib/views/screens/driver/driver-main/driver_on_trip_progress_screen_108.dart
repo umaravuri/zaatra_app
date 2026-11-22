@@ -50,7 +50,7 @@ class DriverOnTripProgressScreen extends StatelessWidget {
       {'time': '9 : 00', 'location': 'Madhapur'},
       {'time': '10 : 00', 'location': 'Ameerpet'},
       {'time': '12 : 00', 'location': 'Begumpet'},
-      {'time': '01 : 00', 'location': 'Secundrabad'},
+      {'time': '01 : 00', 'location': 'Secunderabad'},
     ];
   }
 
@@ -61,6 +61,7 @@ class DriverOnTripProgressScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -112,7 +113,7 @@ class DriverOnTripProgressScreen extends StatelessWidget {
                           SizedBox(width: 12),
                           Icon(Icons.arrow_forward_rounded, color: AppColors.textSecondary, size: 18),
                           SizedBox(width: 12),
-                          Text('Secundrabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                          Text('Secunderabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                         ],
                       ),
                     ),
@@ -142,7 +143,7 @@ class DriverOnTripProgressScreen extends StatelessWidget {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text('EAT  02h 45 Mins', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                              child: const Text('ETA  02h 45 Mins', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                             ),
                           ),
                           Positioned(

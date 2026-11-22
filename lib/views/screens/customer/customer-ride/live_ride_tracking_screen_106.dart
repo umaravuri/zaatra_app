@@ -7,6 +7,7 @@ import '../../../../services/ride_service.dart';
 import '../../../widgets/custom_image_placeholder.dart';
 import '../customer-stay/select_room_screen_54.dart';
 import 'customer_rate_ride_sheet.dart';
+import 'ride_chat_screen.dart';
 
 class LiveRideTrackingScreen extends StatefulWidget {
   final RideBookingSession? session;
@@ -24,119 +25,122 @@ class LiveRideTrackingScreen extends StatefulWidget {
 
 class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
   RideBookingSession get _session => widget.session ?? const RideBookingSession();
-  
+
+  /// Booking loaded from the server when this screen is opened with only a booking id.
+  TripPassDetails? _pass;
+  String _bookingStatus = '';
+  bool _isLoadingBooking = false;
+  String? _bookingError;
+
   List<RoutePropertyItem> _nearbyProperties = [];
   bool _isLoadingProperties = false;
 
-  // Live vehicle coordinates (defaults to route checkpoint or session coordinates)
-  final double _vehicleLat = 17.1439;
-  final double _vehicleLng = 79.6239;
+  // Last known vehicle position from the server. Null until a real position is known.
+  double? _vehicleLat;
+  double? _vehicleLng;
+
+  String get _effectiveBookingId =>
+      (widget.bookingId ?? widget.session?.bookingId ?? '').trim();
 
   @override
   void initState() {
     super.initState();
-    _fetchLiveNearbyStays();
+    final session = widget.session;
+    final needsBooking = session == null || session.driver.name.isEmpty;
+    if (needsBooking && _effectiveBookingId.isNotEmpty) {
+      _loadBooking();
+    } else {
+      _fetchLiveNearbyStays();
+    }
   }
 
-  static List<RoutePropertyItem> _getDefaultFallbackProperties() {
-    return const [
-      RoutePropertyItem(
-        propertyId: 'PR-1002',
-        title: 'Highway Grand Palm Resort',
-        type: 'Resort',
-        city: 'Suryapet',
-        location: 'NH65 Highway, Suryapet',
-        address: 'NH65 Highway, Suryapet, Telangana',
-        price: 3200,
-        pricePerHour: 270,
-        priceFormatted: '₹3,200/night',
-        pricePerHourFormatted: '₹270/hr',
-        rating: 4.7,
-        reviewsCount: 142,
-        distanceKm: 0.8,
-        distanceFormatted: '800 m away from car',
-        amenities: ['Free WiFi', 'AC Rooms', 'Car Parking', 'Swimming Pool'],
-        bookUrl: '/api/bookings/stay?propertyId=PR-1002',
-      ),
-      RoutePropertyItem(
-        propertyId: 'PR-1005',
-        title: 'Green Meadows Eco Farmstay & Suites',
-        type: 'Farmhouse',
-        city: 'Choutuppal',
-        location: 'ORR Highway Exit 11, Choutuppal',
-        address: 'ORR Highway Exit 11, Choutuppal, Telangana',
-        price: 4500,
-        pricePerHour: 350,
-        priceFormatted: '₹4,500/night',
-        pricePerHourFormatted: '₹350/hr',
-        rating: 4.9,
-        reviewsCount: 89,
-        distanceKm: 2.1,
-        distanceFormatted: '2.1 km away from route',
-        amenities: ['Lush Garden', 'AC', 'Power Backup', '24/7 Dining'],
-        bookUrl: '/api/bookings/stay?propertyId=PR-1005',
-      ),
-      RoutePropertyItem(
-        propertyId: 'PR-1008',
-        title: 'Zaatra Transit Haven & Hourly Rooms',
-        type: 'Hotel',
-        city: 'Hayathnagar',
-        location: 'Vijayawada Highway, Hayathnagar',
-        address: 'Vijayawada Highway, Hayathnagar, Hyderabad',
-        price: 1800,
-        pricePerHour: 199,
-        priceFormatted: '₹1,800/night',
-        pricePerHourFormatted: '₹199/hr',
-        rating: 4.8,
-        reviewsCount: 215,
-        distanceKm: 3.4,
-        distanceFormatted: '3.4 km away from route',
-        amenities: ['Instant Check-in', 'AC', 'High-Speed WiFi', 'Luggage Care'],
-        bookUrl: '/api/bookings/stay?propertyId=PR-1008',
-      ),
-    ];
+  /// Loads the real booking (driver, vehicle, route, times) instead of showing invented data.
+  Future<void> _loadBooking() async {
+    setState(() {
+      _isLoadingBooking = true;
+      _bookingError = null;
+    });
+    try {
+      final res = await RideService.getTripPassDetails(_effectiveBookingId);
+      if (!mounted) return;
+      if (res['success'] == true) {
+        final pass = TripPassDetails.fromJson(res);
+        final data = res['data'] is Map ? res['data'] as Map : res;
+        final booking = data['booking'] is Map ? data['booking'] as Map : data;
+        final status = (booking['status'] ?? res['status'] ?? '').toString().toLowerCase().trim();
+        setState(() {
+          _pass = pass;
+          _bookingStatus = status;
+          _isLoadingBooking = false;
+          final mp = pass.mapPreview;
+          if (mp.vehicleLiveLat != 0 && mp.vehicleLiveLng != 0) {
+            _vehicleLat = mp.vehicleLiveLat;
+            _vehicleLng = mp.vehicleLiveLng;
+          } else if (mp.pickupLat != 0 && mp.pickupLng != 0) {
+            _vehicleLat = mp.pickupLat;
+            _vehicleLng = mp.pickupLng;
+          }
+        });
+        _fetchLiveNearbyStays();
+        return;
+      }
+      setState(() {
+        _isLoadingBooking = false;
+        _bookingError = res['message']?.toString() ?? 'Could not load this booking. Please try again.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingBooking = false;
+        _bookingError = 'Could not load this booking. Please check your connection and try again.';
+      });
+    }
   }
 
   Future<void> _fetchLiveNearbyStays() async {
+    final lat = _vehicleLat;
+    final lng = _vehicleLng;
+    if (lat == null || lng == null) {
+      // No real position yet: show no stays rather than invented ones.
+      if (mounted) setState(() => _nearbyProperties = []);
+      return;
+    }
+
     setState(() => _isLoadingProperties = true);
+    List<RoutePropertyItem> list = [];
     try {
       final res = await RideService.getNearbyLiveProperties(
-        lat: _vehicleLat,
-        lng: _vehicleLng,
+        lat: lat,
+        lng: lng,
         radiusKm: 15,
         limit: 5,
       );
-
-      List<RoutePropertyItem> list = [];
       if (res['success'] == true && res['properties'] is List) {
         list = (res['properties'] as List)
             .map((p) => RoutePropertyItem.fromJson(p as Map<String, dynamic>))
             .toList();
       }
-
-      if (list.isEmpty) {
-        list = _getDefaultFallbackProperties();
-      }
-
-      if (mounted) {
-        setState(() {
-          _nearbyProperties = list;
-          _isLoadingProperties = false;
-        });
-      }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _nearbyProperties = _getDefaultFallbackProperties();
-          _isLoadingProperties = false;
-        });
-      }
+      // Leave the list empty; never substitute made-up properties.
+    }
+
+    if (mounted) {
+      setState(() {
+        _nearbyProperties = list;
+        _isLoadingProperties = false;
+      });
     }
   }
 
   Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
     final clean = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('tel:${clean.isNotEmpty ? clean : '+919876543210'}');
+    if (clean.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Driver phone number is not available yet.')),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$clean');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
@@ -156,26 +160,19 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
     }
   }
 
-  Future<void> _sendSms(BuildContext context, String phoneNumber) async {
-    final clean = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('sms:${clean.isNotEmpty ? clean : '+919876543210'}');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Messaging $phoneNumber...')),
-          );
-        }
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch messaging app for $phoneNumber')),
-        );
-      }
-    }
+  void _openChat(BuildContext context, String driverName, String vehicleInfo) {
+    final session = _session;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideChatScreen(
+          bookingId: _effectiveBookingId,
+          rideId: session.rideId.isNotEmpty ? session.rideId : null,
+          driverName: driverName,
+          vehicleInfo: vehicleInfo,
+        ),
+      ),
+    );
   }
 
   Hotel _convertRoutePropertyToHotel(RoutePropertyItem prop) {
@@ -438,24 +435,91 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
     final s = _session;
     final driver = s.driver;
 
-    final driverName = driver.name.isNotEmpty ? driver.name : 'vikaram';
-    final vehiclePlate = driver.vehicleNumber.isNotEmpty ? driver.vehicleNumber : (driver.carModel.isNotEmpty ? driver.carModel : 'Seltos • AP40GH6666');
-    final driverRating = driver.rating > 0 ? driver.rating.toStringAsFixed(1) : '4.9';
-    final driverPhone = driver.phone.isNotEmpty ? driver.phone : '+91 9639879639';
+    final pass = _pass;
 
-    final pickupLocation = s.boardingPoint.isNotEmpty
-        ? s.boardingPoint
-        : (s.pickup.isNotEmpty ? s.pickup : 'Miyapur, Telangana');
-    final destinationLocation = s.destination.isNotEmpty ? s.destination : 'Guntur, Andhra Pradesh';
+    String firstNonEmpty(List<String?> values, String fallback) {
+      for (final v in values) {
+        if (v != null && v.trim().isNotEmpty) return v;
+      }
+      return fallback;
+    }
 
-    final departureDate = s.date.isNotEmpty ? s.date : 'Today';
-    final departureTime = s.time.isNotEmpty ? s.time : (driver.departureTime.isNotEmpty ? driver.departureTime : '03:00 PM');
-    final arrivalTime = s.rideDetailData?.arrivalTime.isNotEmpty == true ? s.rideDetailData!.arrivalTime : '10:30 AM';
+    final driverName = firstNonEmpty([driver.name, pass?.driverName], 'Driver');
+    final vehiclePlate = firstNonEmpty(
+      [driver.vehicleNumber, driver.carModel, pass?.vehicleSummary],
+      '--',
+    );
+    final ratingValue = driver.rating > 0 ? driver.rating : (pass?.driverRating ?? 0.0);
+    final driverRating = ratingValue > 0 ? ratingValue.toStringAsFixed(1) : 'New';
+    final driverPhone = firstNonEmpty([driver.phone, pass?.driverPhone], '');
+
+    final pickupLocation = firstNonEmpty(
+      [s.boardingPoint, s.pickup, pass?.mapPreview.pickupLocation],
+      '--',
+    );
+    final destinationLocation = firstNonEmpty(
+      [s.destination, pass?.mapPreview.destinationLocation],
+      '--',
+    );
+
+    final departureDate = firstNonEmpty([s.date, pass?.ticket.checkInDate], '--');
+    final departureTime = firstNonEmpty(
+      [s.time, driver.departureTime, pass?.ticket.checkInTime],
+      '--',
+    );
+    final arrivalTime = firstNonEmpty(
+      [s.rideDetailData?.arrivalTime, pass?.ticket.checkOutTime],
+      '--',
+    );
+
+    if (_isLoadingBooking) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (_bookingError != null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Back',
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _bookingError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadBooking,
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -769,7 +833,7 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
                             ),
                             IconButton(
                               icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.primary),
-                              onPressed: () => _sendSms(context, driverPhone),
+                              onPressed: () => _openChat(context, driverName, vehiclePlate),
                             ),
                           ],
                         ),
@@ -830,7 +894,8 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
 
                 const SizedBox(height: 14),
 
-                // Rate Your Ride Button (Customer Rating Flow)
+                // Rate Your Ride Button (Customer Rating Flow): only once the ride is completed
+                if (_bookingStatus == 'completed')
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: SizedBox(
@@ -840,12 +905,14 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
                       onPressed: () {
                         CustomerRateRideSheet.show(
                           context,
-                          bookingId: widget.bookingId,
+                          bookingId: widget.bookingId ?? s.bookingId,
+                          rideId: s.rideId.isNotEmpty ? s.rideId : null,
+                          driverId: driver.id.isNotEmpty ? driver.id : null,
                           driverName: driverName,
                           vehicleInfo: vehiclePlate,
-                          origin: departureTime,
+                          origin: pickupLocation.split(',').first,
                           destination: destinationLocation.split(',').first,
-                          intermediateStop: 'En-route',
+                          departureTime: departureTime,
                         );
                       },
                       icon: const Icon(Icons.star_rounded, color: Colors.white, size: 20),

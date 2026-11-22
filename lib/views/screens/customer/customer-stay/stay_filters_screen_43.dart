@@ -33,6 +33,7 @@ class _StayFiltersScreenState extends State<StayFiltersScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -78,7 +79,7 @@ class _StayFiltersScreenState extends State<StayFiltersScreen> {
                         activeTrackColor: AppColors.primary,
                         inactiveTrackColor: const Color(0xFFE8DEF8),
                         thumbColor: AppColors.primary,
-                        overlayColor: AppColors.primary.withOpacity(0.1),
+                        overlayColor: AppColors.primary.withValues(alpha: 0.1),
                       ),
                       child: Slider(
                         value: _priceValue,
