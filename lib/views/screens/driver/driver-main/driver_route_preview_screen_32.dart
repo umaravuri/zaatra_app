@@ -252,7 +252,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
                         Expanded(
                           child: Text(
                             _pickup.formattedAddress.isNotEmpty ? _pickup.formattedAddress : _pickup.name,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -283,14 +283,14 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
                                   children: [
                                     Text(
                                       'Stop: ${stop.location}',
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     if (stop.time.isNotEmpty || (stop.landmark != null && stop.landmark!.isNotEmpty))
                                       Text(
                                         [if (stop.time.isNotEmpty) stop.time, if (stop.landmark != null && stop.landmark!.isNotEmpty) 'Near ' + stop.landmark!].join(' • '),
-                                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                       ),
                                   ],
                                 ),
@@ -303,7 +303,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
                                 ),
                                 child: Text(
                                   '₹ ${stop.price}',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.primary),
                                 ),
                               ),
                             ],
@@ -326,7 +326,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
                         Expanded(
                           child: Text(
                             _destination.formattedAddress.isNotEmpty ? _destination.formattedAddress : _destination.name,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -409,7 +409,7 @@ class _DriverRoutePreviewScreenState extends State<DriverRoutePreviewScreen> {
         children: [
           Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
         ],
       ),
     );

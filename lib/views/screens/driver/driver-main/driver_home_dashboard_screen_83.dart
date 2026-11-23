@@ -855,19 +855,10 @@ class _DriverHomeDashboardScreen83State
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Gradient Header with Profile & Online Toggle
+                      // Top Scenic Header with Overlapping Floating Metrics Card
                       _buildHeaderSection(),
 
-                      // Floating Metrics Card (My Rides, Co-travelers, KM, Ratings) overlapping header
-                      Transform.translate(
-                        offset: const Offset(0, -32),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          child: _buildTopMetricsCard(),
-                        ),
-                      ),
-
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 14),
 
                       // Categories (My Ride, Supports, Notification, Earnings)
                       Padding(
@@ -889,7 +880,7 @@ class _DriverHomeDashboardScreen83State
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
 
                       // Upcoming Ride Card
                       Padding(
@@ -911,7 +902,7 @@ class _DriverHomeDashboardScreen83State
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
 
                       // Today Summary
                       Padding(
@@ -933,7 +924,7 @@ class _DriverHomeDashboardScreen83State
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
 
                       // Monthly Summary
                       Padding(
@@ -981,50 +972,58 @@ class _DriverHomeDashboardScreen83State
     );
   }
 
-  // 1. Purple Header with Dynamic Profile Avatar, Dynamic Greeting & Online Switch
   // 1. Scenic City Backdrop Header with Zaatra Brand Badge & Online Switch
   Widget _buildHeaderSection() {
     return SizedBox(
       width: double.infinity,
-      height: 220,
+      height: 230,
       child: Stack(
-        fit: StackFit.expand,
+        clipBehavior: Clip.none,
         children: [
           // Scenic city skyline backdrop from Figma (Rectangle 54.png)
-          Image.asset(
-            'assets/images/Rectangle 54.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            errorBuilder: (_, __, ___) => Image.asset(
-              'assets/images/driver_dashboard_header_bg.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFE8DDFF), Color(0xFFF5F0FF)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+          SizedBox(
+            width: double.infinity,
+            height: 185,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/Rectangle 54.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (_, __, ___) => Image.asset(
+                    'assets/images/driver_dashboard_header_bg.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    errorBuilder: (_, __, ___) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFE8DDFF), Color(0xFFF5F0FF)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          // Soft gradient overlay to fade into page background at bottom
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: 0.08),
-                    Colors.white.withValues(alpha: 0.0),
-                    const Color(0xFFFAF9FD).withValues(alpha: 0.90),
-                  ],
-                  stops: const [0.0, 0.55, 1.0],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                // Soft gradient overlay to fade into page background at bottom
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.08),
+                          Colors.white.withValues(alpha: 0.0),
+                          const Color(0xFFFAF9FD).withValues(alpha: 0.90),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
           // Content Row: Zaatra Badge, Greeting/Name, and Online Pill
@@ -1159,6 +1158,13 @@ class _DriverHomeDashboardScreen83State
               ],
             ),
           ),
+          // Floating Summary Metrics Card overlapping the header backdrop
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 0,
+            child: _buildTopMetricsCard(),
+          ),
         ],
       ),
     );
@@ -1216,10 +1222,9 @@ class _DriverHomeDashboardScreen83State
   }
 
   // 2. Dynamic Top Metric Statistics Card
-  // 2. Dynamic Top Metric Statistics Card
   Widget _buildTopMetricsCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -1234,20 +1239,26 @@ class _DriverHomeDashboardScreen83State
       child: Row(
         children: [
           _buildMetricColumn(
-              icon: Icons.directions_car_rounded,
+              imageAsset: 'assets/images/ant-design_car-filled.png',
+              fallbackIcon: Icons.directions_car_rounded,
               value: _ridesCount,
               label: 'My Rides'),
           _buildVerticalDivider(),
           _buildMetricColumn(
-              icon: Icons.groups_rounded,
+              imageAsset: 'assets/images/fa7-solid_user-group.png',
+              fallbackIcon: Icons.groups_rounded,
               value: _coTravelers,
               label: 'Co-travelers'),
           _buildVerticalDivider(),
           _buildMetricColumn(
-              icon: Icons.location_on_rounded, value: _totalKm, label: 'KM'),
+              imageAsset: 'assets/images/fa6-solid_map-location-dot.png',
+              fallbackIcon: Icons.location_on_rounded,
+              value: _totalKm,
+              label: 'KM'),
           _buildVerticalDivider(),
           _buildMetricColumn(
-            icon: Icons.star_rounded,
+            imageAsset: 'assets/images/ant-design_star-filled.png',
+            fallbackIcon: Icons.star_rounded,
             value: _rating,
             label: 'Ratings',
             onTap: () {
@@ -1264,7 +1275,8 @@ class _DriverHomeDashboardScreen83State
   }
 
   Widget _buildMetricColumn({
-    required IconData icon,
+    required String imageAsset,
+    required IconData fallbackIcon,
     required String value,
     required String label,
     VoidCallback? onTap,
@@ -1272,7 +1284,14 @@ class _DriverHomeDashboardScreen83State
     final col = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
+        Image.asset(
+          imageAsset,
+          width: 16,
+          height: 16,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+              Icon(fallbackIcon, size: 16, color: AppColors.primary),
+        ),
         const SizedBox(height: 6),
         Text(
           value,

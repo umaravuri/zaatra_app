@@ -837,7 +837,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                         ),
                         const Text(
                           'Save for future ride',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                         ),
                       ],
                     ),
@@ -947,7 +947,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
               const Expanded(
                 child: Text(
                   'Smoking allowed or not allowed',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                 ),
               ),
             ],
@@ -982,8 +982,8 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                         Text(
                           'Not Allowed',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
                             color: !isAllowed ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
@@ -1020,8 +1020,8 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                         Text(
                           'Allowed',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
                             color: isAllowed ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
@@ -1056,8 +1056,8 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
             Text(
               label,
               style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
                 color: AppColors.primary,
               ),
             ),
@@ -1092,7 +1092,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1139,7 +1139,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1156,7 +1156,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                 ),
                 const SizedBox(width: 4),
               ],
-              Text('$count', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              Text('$count', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
               const SizedBox(width: 8),
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1255,8 +1255,8 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
               child: Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
                   color: Color(0xFF1D1B20),
                 ),
               ),

@@ -406,8 +406,8 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                       title: Text(
                         label,
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
                           color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         ),
                       ),
@@ -483,8 +483,8 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                       title: Text(
                         item,
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
                           color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         ),
                       ),
@@ -653,7 +653,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                                             label,
                                             style: TextStyle(
                                               fontSize: 12,
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                              fontWeight: FontWeight.normal,
                                               color: isSelected ? AppColors.primary : AppColors.textPrimary,
                                             ),
                                             maxLines: 1,
@@ -669,7 +669,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                                             ),
                                             child: const Text(
                                               'Best',
-                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.normal, color: Color(0xFF15803D)),
                                             ),
                                           ),
                                       ],
@@ -679,7 +679,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                                       '${r.durationText} • ${r.distanceText}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                        fontWeight: FontWeight.normal,
                                         color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                                       ),
                                     ),
@@ -704,7 +704,7 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                       child: const Center(
                         child: Text(
                           'Select pickup & destination to view map',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textSecondary),
                         ),
                       ),
                     ),
@@ -778,24 +778,24 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Text('₹ ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                  const Text('₹ ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
                                   Expanded(
                                     child: TextField(
                                       controller: _basePriceController,
                                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                                       onChanged: _onBasePriceChanged,
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                                       decoration: const InputDecoration(
                                         border: InputBorder.none,
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(vertical: 2),
                                         hintText: '10',
-                                        hintStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: AppColors.textSecondary),
+                                        hintStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textSecondary),
                                       ),
                                     ),
                                   ),
-                                  const Text('/ km', style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                                  const Text('/ km', style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.normal)),
                                 ],
                               ),
                             ],
@@ -830,14 +830,14 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
                                     )
                                   : Text(
                                       '₹ ${_calculatedPricePerSeat > 0 ? _calculatedPricePerSeat.toStringAsFixed(0) : '0'}',
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.primary),
                                     ),
                               const SizedBox(height: 2),
                               Text(
                                 _tripDistanceKm > 0 && (double.tryParse(_basePriceController.text.trim()) ?? 0) > 0
                                     ? '${_tripDistanceKm.toStringAsFixed(_tripDistanceKm.truncateToDouble() == _tripDistanceKm ? 0 : 1)} kms x ${_basePriceController.text.trim()}rs'
                                     : '-- kms x -- rs',
-                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.normal),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1161,14 +1161,14 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFFA1A1A1))),
+                const SizedBox(height: 4),
                 Text(
                   isSelected ? address : placeholder,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                    color: isSelected ? Colors.black : AppColors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1198,14 +1198,14 @@ class _DriverMyRideScreenState extends State<DriverMyRideScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFFA1A1A1))),
                 const SizedBox(height: 4),
                 Text(
                   hasValue ? value : placeholder,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
-                    color: hasValue ? AppColors.textPrimary : AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                    color: hasValue ? Colors.black : AppColors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
