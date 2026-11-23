@@ -14,6 +14,25 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _notifications = [];
 
+  final List<String> _filters = [
+    'ALL',
+    'read',
+    'unread',
+  ];
+
+  String _getFilterLabel(String f) {
+    switch (f) {
+      case 'ALL':
+        return 'All';
+      case 'read':
+        return 'Read';
+      case 'unread':
+        return 'Unread';
+      default:
+        return f;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -36,15 +55,34 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
     if (data is List) {
       loadedNotifications = data.map((item) {
         if (item is Map<String, dynamic>) {
-          return item;
+          final isRead = item['read'] == true;
+          return {
+            ...item,
+            'read': isRead,
+            'unread': item['unread'] == true || !isRead,
+          };
         }
         return <String, dynamic>{
           'title': item.toString(),
           'subtitle': '',
           'time': 'Just now',
           'type': 'new',
+          'read': true,
+          'unread': false,
         };
       }).toList();
+
+      // Local filtering fallback if filter is not ALL
+      if (_selectedFilter != 'ALL') {
+        final f = _selectedFilter.toLowerCase();
+        loadedNotifications = loadedNotifications.where((n) {
+          final isRead = n['read'] == true;
+          final isUnread = n['unread'] == true || !isRead;
+          if (f == 'read') return isRead && !isUnread;
+          if (f == 'unread') return isUnread;
+          return true;
+        }).toList();
+      }
     }
 
     setState(() {
@@ -80,20 +118,23 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3EDF7),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedFilter,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.primary),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    items: ['ALL', 'NEW', 'CONFIRMED', 'TRIP'].map((filter) {
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: AppColors.primary),
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    items: _filters.map((filter) {
                       return DropdownMenuItem<String>(
                         value: filter,
-                        child: Text(filter),
+                        child: Text(
+                          _getFilterLabel(filter),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        ),
                       );
                     }).toList(),
                     onChanged: _onFilterChanged,
@@ -184,9 +225,9 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
                         )
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           itemCount: _notifications.length,
-                          separatorBuilder: (context, index) => const Divider(height: 28, color: AppColors.border),
+                          separatorBuilder: (context, index) => const Divider(height: 16, color: AppColors.border),
                           itemBuilder: (context, index) {
                             final notif = _notifications[index];
                             final title = notif['title']?.toString() ?? 'Notification';
@@ -198,8 +239,8 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
                             return Row(
                               children: [
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 34,
+                                  height: 34,
                                   decoration: BoxDecoration(
                                     color: isConfirmed ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
                                     shape: BoxShape.circle,
@@ -207,31 +248,32 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen> {
                                   child: Icon(
                                     isConfirmed ? Icons.check_circle_outline_rounded : Icons.open_in_new_rounded,
                                     color: isConfirmed ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
-                                    size: 22,
+                                    size: 16,
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         title,
-                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                                       ),
                                       if (subtitle.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 2),
                                         Text(
                                           subtitle,
-                                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                          style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                                         ),
                                       ],
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   time,
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                                  style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             );

@@ -17,24 +17,18 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
 
   final List<String> _filters = [
     'ALL',
-    'booking_received',
-    'booking_confirmed',
+    'read',
     'unread',
-    'SYSTEM',
   ];
 
   String _getFilterLabel(String f) {
     switch (f) {
       case 'ALL':
         return 'All';
-      case 'booking_received':
-        return 'Requests';
-      case 'booking_confirmed':
-        return 'Confirmed';
+      case 'read':
+        return 'Read';
       case 'unread':
         return 'Unread';
-      case 'SYSTEM':
-        return 'System';
       default:
         return f;
     }
@@ -113,12 +107,11 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
     if (_selectedFilter != 'ALL') {
       final f = _selectedFilter.toLowerCase();
       loadedNotifications = loadedNotifications.where((n) {
-        final t = (n['type']?.toString() ?? '').toLowerCase();
-        final c = (n['category']?.toString() ?? '').toLowerCase();
-        final title = (n['title']?.toString() ?? '').toLowerCase();
-        if (f == 'new') return t.contains('new') || c.contains('ride') || n['unread'] == true;
-        if (f == 'payout') return t.contains('payout') || t.contains('earn') || c.contains('payout') || title.contains('payout');
-        if (f == 'system') return t.contains('system') || c.contains('system') || t.contains('safety') || c.contains('safety');
+        final isRead = n['read'] == true;
+        final isUnread = n['unread'] == true || !isRead;
+
+        if (f == 'read') return isRead && !isUnread;
+        if (f == 'unread') return isUnread;
         return true;
       }).toList();
     }
@@ -328,20 +321,23 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3EDF7),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedFilter,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary, size: 18),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary, size: 15),
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                     items: _filters.map((filter) {
                       return DropdownMenuItem<String>(
                         value: filter,
-                        child: Text(_getFilterLabel(filter)),
+                        child: Text(
+                          _getFilterLabel(filter),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        ),
                       );
                     }).toList(),
                     onChanged: _onFilterChanged,
@@ -430,9 +426,9 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                         )
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
                           itemCount: _notifications.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final notif = _notifications[index];
                             final title = notif['title']?.toString() ?? 'Notification';
@@ -443,21 +439,21 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
 
                             return InkWell(
                               onTap: () => _showNotificationDetail(notif),
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(12),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isUnread ? const Color(0xFFFAF7FE) : Colors.white,
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isUnread ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
-                                    width: isUnread ? 1.4 : 1.0,
+                                    width: isUnread ? 1.2 : 1.0,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withValues(alpha: 0.03),
-                                      blurRadius: 8,
+                                      blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
                                   ],
@@ -467,7 +463,7 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                                   children: [
                                     // Circular category icon
                                     Container(
-                                      padding: const EdgeInsets.all(10),
+                                      padding: const EdgeInsets.all(7),
                                       decoration: BoxDecoration(
                                         color: styleInfo.bgColor,
                                         shape: BoxShape.circle,
@@ -475,10 +471,10 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                                       child: Icon(
                                         styleInfo.icon,
                                         color: styleInfo.iconColor,
-                                        size: 20,
+                                        size: 16,
                                       ),
                                     ),
-                                    const SizedBox(width: 14),
+                                    const SizedBox(width: 10),
 
                                     // Content text
                                     Expanded(
@@ -492,7 +488,7 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                                                 child: Text(
                                                   title,
                                                   style: TextStyle(
-                                                    fontSize: 14.5,
+                                                    fontSize: 13,
                                                     fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
                                                     color: AppColors.textPrimary,
                                                   ),
@@ -501,8 +497,8 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                                               if (isUnread) ...[
                                                 const SizedBox(width: 6),
                                                 Container(
-                                                  width: 8,
-                                                  height: 8,
+                                                  width: 7,
+                                                  height: 7,
                                                   decoration: const BoxDecoration(
                                                     color: AppColors.primary,
                                                     shape: BoxShape.circle,
@@ -512,23 +508,23 @@ class _DriverNotificationsScreenState extends State<DriverNotificationsScreen> {
                                             ],
                                           ),
                                           if (subtitle.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 3),
                                             Text(
                                               subtitle,
                                               style: const TextStyle(
-                                                fontSize: 12.5,
+                                                fontSize: 11.5,
                                                 color: AppColors.textSecondary,
-                                                height: 1.35,
+                                                height: 1.3,
                                               ),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ],
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 6),
                                           Text(
                                             time,
                                             style: const TextStyle(
-                                              fontSize: 11.5,
+                                              fontSize: 10.5,
                                               color: AppColors.textMuted,
                                               fontWeight: FontWeight.w500,
                                             ),
