@@ -63,11 +63,11 @@ class DriverRideStartScreen extends StatelessWidget {
                   children: const [
                     Row(
                       children: [
-                        Text('Madhapur', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        Text('Madhapur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
                         SizedBox(width: 10),
                         Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.textMuted),
                         SizedBox(width: 10),
-                        Text('Secunderabad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        Text('Secunderabad', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
                       ],
                     ),
                     SizedBox(height: 6),
@@ -189,7 +189,7 @@ class DriverRideStartScreen extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(height: 2),
-            Text(address, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            Text(address, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
           ],
         ),
       ],

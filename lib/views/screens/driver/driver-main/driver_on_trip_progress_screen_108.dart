@@ -109,11 +109,11 @@ class DriverOnTripProgressScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: const [
-                          Text('Madhapur', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                          Text('Madhapur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
                           SizedBox(width: 12),
                           Icon(Icons.arrow_forward_rounded, color: AppColors.textSecondary, size: 18),
                           SizedBox(width: 12),
-                          Text('Secunderabad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                          Text('Secunderabad', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary)),
                         ],
                       ),
                     ),

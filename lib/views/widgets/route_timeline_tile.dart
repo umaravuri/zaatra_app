@@ -44,8 +44,8 @@ class RouteTimelineTile extends StatelessWidget {
                     child: Text(
                       time,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.normal,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -95,8 +95,8 @@ class RouteTimelineTile extends StatelessWidget {
                   child: Text(
                     station,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
                       color: AppColors.textPrimary,
                       height: 1.25,
                     ),
