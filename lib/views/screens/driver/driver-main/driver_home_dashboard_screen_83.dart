@@ -618,22 +618,7 @@ class _DriverHomeDashboardScreen83State
   }
 
   Future<void> _handlePostRideTapped() async {
-    // 1. If status is OFF, show red error message at the bottom asking driver to turn status On
-    if (!_isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Please turn your status 'On' from the top of the screen to post a ride.",
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: Color(0xFFD32F2F),
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    // 2. If status is active (ON), verify vehicle registration & proceed
+    // Verify vehicle registration & proceed to post ride (allowed regardless of online/offline status)
     await _verifyAndProceedToPostRide();
   }
 
@@ -671,38 +656,25 @@ class _DriverHomeDashboardScreen83State
 
     final canPostRide = verifyRes['canPostRide'] == true;
 
-    if (canPostRide) {
+    final popup = verifyRes['popup'] is Map
+        ? (verifyRes['popup'] as Map<String, dynamic>)
+        : null;
+    final btnLower = (popup?['buttonText'] ?? '').toString().toLowerCase();
+    final titleLower = (popup?['title'] ?? '').toString().toLowerCase();
+    final descLower = (popup?['description'] ?? '').toString().toLowerCase();
+    final isAvailabilityPopup = btnLower.contains('availability') ||
+        btnLower.contains('turn on') ||
+        titleLower.contains('availability') ||
+        titleLower.contains('status') ||
+        descLower.contains('availability');
+
+    if (canPostRide || isAvailabilityPopup) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
       );
     } else {
-      final popup = verifyRes['popup'] is Map
-          ? (verifyRes['popup'] as Map<String, dynamic>)
-          : null;
-      final btnLower = (popup?['buttonText'] ?? '').toString().toLowerCase();
-      final titleLower = (popup?['title'] ?? '').toString().toLowerCase();
-      final descLower = (popup?['description'] ?? '').toString().toLowerCase();
-      final isAvailabilityPopup = btnLower.contains('availability') ||
-          btnLower.contains('turn on') ||
-          titleLower.contains('availability') ||
-          titleLower.contains('status') ||
-          descLower.contains('availability');
-
-      if (isAvailabilityPopup) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Please turn your status 'On' from the top of the screen to post a ride.",
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: Color(0xFFD32F2F),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } else {
-        _showRegisterVehiclePopup(popup);
-      }
+      _showRegisterVehiclePopup(popup);
     }
   }
 
