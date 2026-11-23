@@ -677,49 +677,6 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     );
   }
 
-  Future<void> _triggerPreTripAlert() async {
-    try {
-      final res = await RideService.sendPreTripAlert(rideId: _rideId);
-      if (!mounted) return;
-      if (res['success'] == true) {
-        setState(() {
-          _startRideStatus = StartRideLockStatus(
-            canStartRide: _startRideStatus.canStartRide,
-            isLocked: _startRideStatus.isLocked,
-            departureDateTime: _startRideStatus.departureDateTime,
-            departureFormatted: _startRideStatus.departureFormatted,
-            startRideAllowedFrom: _startRideStatus.startRideAllowedFrom,
-            startRideAllowedFromFormatted: _startRideStatus.startRideAllowedFromFormatted,
-            hoursRemainingUntilStart: _startRideStatus.hoursRemainingUntilStart,
-            minutesRemainingUntilStart: _startRideStatus.minutesRemainingUntilStart,
-            lockReason: _startRideStatus.lockReason,
-            buttonText: _startRideStatus.buttonText,
-            preTripAlertSent: true,
-          );
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? '5-Hour Pre-Trip alarms successfully dispatched! ⏰'),
-            backgroundColor: const Color(0xFF2E7D32),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? 'Failed to send pre-trip alert.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-        );
-      }
-    }
-  }
-
   Future<void> _startRide() async {
     if (!_isDriverOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1349,59 +1306,6 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                     ),
                     const SizedBox(height: 12),
                   ],
-
-                  // 5-Hour Pre-Trip Alarm Status / Manual Trigger
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _startRideStatus.preTripAlertSent ? const Color(0xFFE8F5E9) : const Color(0xFFF3EDF7),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _startRideStatus.preTripAlertSent ? const Color(0xFF81C784) : AppColors.border,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _startRideStatus.preTripAlertSent ? Icons.check_circle_rounded : Icons.alarm_on_rounded,
-                          color: _startRideStatus.preTripAlertSent ? const Color(0xFF2E7D32) : AppColors.primary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _startRideStatus.preTripAlertSent
-                                ? 'Pre-Trip Alarm Dispatched ✓'
-                                : 'Pre-Trip Alarm (1h Auto-Alert)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _startRideStatus.preTripAlertSent ? const Color(0xFF2E7D32) : AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (!_startRideStatus.preTripAlertSent)
-                          InkWell(
-                            onTap: _triggerPreTripAlert,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Dispatch',
-                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-
 
                   // 2. Share Trip Card Button
                   CustomButton(
