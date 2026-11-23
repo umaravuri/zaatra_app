@@ -12,6 +12,7 @@ import '../../../widgets/driver_conflict_dialogs.dart';
 import '../../../widgets/route_map_webview.dart';
 import '../../../widgets/route_timeline_tile.dart';
 import 'driver_passenger_pin_verification_screen_89.dart';
+import 'driver_on_trip_seats_screen_91.dart';
 import 'driver_trip_shared_screen_94.dart';
 import 'trip_completed_summary_screen_35.dart';
 
@@ -791,14 +792,38 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Ride started successfully! 🚀 Starting navigation...'),
+        content: Text('Ride started successfully! 🚀'),
         backgroundColor: Color(0xFF2E7D32),
         duration: Duration(seconds: 2),
       ),
     );
 
-    // 2. Launch Google Maps navigation
-    await _startGoogleMapsNavigation(force: true);
+    // 2. Navigate to Screen 91 (On Trip Seats & Navigation Screen)
+    _navigateToOnTripSeatsScreen();
+  }
+
+  void _navigateToOnTripSeatsScreen() {
+    final depTime = _stops.isNotEmpty ? _stops.first['time']?.toString() ?? '--' : '--';
+    final arrTime = _stops.isNotEmpty ? _stops.last['time']?.toString() ?? '--' : '--';
+    final dur = _candidateRoutes.isNotEmpty ? _candidateRoutes.first.duration : '02h 45 Mins';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DriverOnTripSeatsScreen(
+          rideId: _rideId,
+          origin: _origin.isNotEmpty ? _origin.split(',').first : 'Origin',
+          destination: _destination.isNotEmpty ? _destination.split(',').first : 'Destination',
+          departureTime: depTime,
+          arrivalTime: arrTime,
+          duration: dur,
+          totalSeats: 4,
+          bookedSeats: _passengers.length,
+          passengerList: _passengers,
+          routeTimeline: _stops,
+        ),
+      ),
+    );
   }
 
   Future<void> _startGoogleMapsNavigation({bool force = false}) async {
@@ -1381,7 +1406,7 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
                               : AppColors.primary),
                       textColor: Colors.white,
                       onPressed: _isRideStarted
-                          ? () => _startGoogleMapsNavigation(force: true)
+                          ? _navigateToOnTripSeatsScreen
                           : _startRide,
                     ),
 
