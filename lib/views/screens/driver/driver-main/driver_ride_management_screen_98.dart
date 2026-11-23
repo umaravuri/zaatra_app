@@ -349,39 +349,41 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
                           ),
                   ),
 
-                  // Bottom Action Buttons: Permanent Publish New Ride CTA above Next Button
+                  // Bottom Action Buttons: Publish New Ride CTA (when rides exist) and Next Button
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 20.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
-                              );
-                              _fetchRides();
-                            },
-                            icon: const Icon(Icons.add_rounded, color: AppColors.primary),
-                            label: const Text(
-                              'Publish New Ride',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.primary,
-                              elevation: 2,
-                              shadowColor: Colors.black12,
-                              side: const BorderSide(color: AppColors.primary, width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        if (currentRides.isNotEmpty) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
+                                );
+                                _fetchRides();
+                              },
+                              icon: const Icon(Icons.add_rounded, color: AppColors.primary),
+                              label: const Text(
+                                'Publish New Ride',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.primary,
+                                elevation: 2,
+                                shadowColor: Colors.black12,
+                                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
+                        ],
                         CustomButton(
                           text: 'Next',
                           onPressed: () {
