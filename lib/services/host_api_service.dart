@@ -13,8 +13,8 @@ import 'api_service.dart';
 class HostApiService {
   HostApiService._();
 
-  /// TEMPORARY: serve sample data instead of calling the backend.
-  static bool useStaticData = true;
+  /// Set to false to hit live backend APIs via ApiService.
+  static bool useStaticData = false;
 
   // Cached in-memory metadata
   static Map<String, dynamic>? _cachedMetadata;
