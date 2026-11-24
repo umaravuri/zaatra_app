@@ -8,6 +8,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_19_post_unit_hub.dart';
 
+/// Figma: frame 1228744489 (node 1:243)
 class HostScreen18UploadPhotos extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic>? unitData;
@@ -24,13 +25,8 @@ class HostScreen18UploadPhotos extends StatefulWidget {
 
 class _HostScreen18UploadPhotosState extends State<HostScreen18UploadPhotos> {
   late HostUpdatedPropertyDraft _draft;
-  final List<String> _sampleAssets = [
-    'assets/images/sample_property_1.png',
-    'assets/images/sample_property_2.png',
-    'assets/images/sample_property_3.png',
-    'assets/images/sample_property_4.png',
-    'assets/images/sample_property_5.png',
-  ];
+  // Photos start empty; the host adds their own (no pre-loaded sample photos).
+  final List<String> _sampleAssets = [];
 
   final List<XFile> _pickedFiles = [];
   final ImagePicker _picker = ImagePicker();
@@ -93,22 +89,18 @@ class _HostScreen18UploadPhotosState extends State<HostScreen18UploadPhotos> {
 
     if (mounted) setState(() => _isUploading = false);
 
+    // Merge the unit details from screen 17 (price, beds, rules, ...) with the photos.
     final updatedUnits = List<Map<String, dynamic>>.from(_draft.units);
+    final base = updatedUnits.isNotEmpty ? updatedUnits.first : <String, dynamic>{};
+    final unit = <String, dynamic>{
+      ...base,
+      ...?widget.unitData,
+      'photos': photoList,
+    };
     if (updatedUnits.isNotEmpty) {
-      final unit = Map<String, dynamic>.from(updatedUnits.first);
-      unit['photos'] = photoList;
       updatedUnits[0] = unit;
     } else {
-      updatedUnits.add({
-        'purpose': 'Stay / Accomadation',
-        'unitType': 'Double',
-        'guests': '2',
-        'beds': 1,
-        'bedSummary': '1 extra large double bed',
-        'bathrooms': 1,
-        'basePrice': '2500',
-        'photos': photoList,
-      });
+      updatedUnits.add(unit);
     }
 
     final updatedDraft = _draft.copyWith(units: updatedUnits);
@@ -284,3 +276,7 @@ class _HostScreen18UploadPhotosState extends State<HostScreen18UploadPhotos> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -7,6 +7,7 @@ import 'host_screen_20_invoicing.dart';
 import 'host_event_screen_11_event_types.dart';
 import 'host_screen_15_accommodation_rooms.dart';
 
+/// Figma: frame 1228744511 (node 1:1575)
 class HostScreen19PostUnitHub extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -35,6 +36,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
   late TextEditingController _unitBathController;
   late TextEditingController _unitPriceController;
   late TextEditingController _unitCategoryController;
+  late TextEditingController _unitRoomsController;
 
   @override
   void initState() {
@@ -46,7 +48,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
   void _initControllers() {
     // Step 1 Details
     _nameController = TextEditingController(
-      text: _draft.propertyName.isNotEmpty ? _draft.propertyName : 'The Blue Hotel & Suites',
+      text: _draft.propertyName,
     );
 
     final addressStr = [
@@ -56,12 +58,12 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
       if (_draft.postalCode.isNotEmpty) _draft.postalCode,
     ].join(', ');
     _addressController = TextEditingController(
-      text: addressStr.isNotEmpty ? addressStr : 'Plot 42, Hitech City Main Road, Hyderabad',
+      text: addressStr,
     );
 
     final facilitiesStr = _draft.facilities.isNotEmpty
         ? _draft.facilities.take(4).join(', ') + (_draft.facilities.length > 4 ? ' +${_draft.facilities.length - 4} more' : '')
-        : 'Wifi, AC, Pool, Lift, Garden';
+        : '';
     _facilitiesController = TextEditingController(text: facilitiesStr);
 
     final petStr = _draft.allowsPets == 'yes'
@@ -75,32 +77,35 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
     _unitRoomTypeController = TextEditingController(
       text: unit['unitType']?.toString().isNotEmpty == true
           ? unit['unitType'].toString()
-          : 'Double',
+          : '',
     );
     _unitGuestsController = TextEditingController(
       text: unit['guests']?.toString().isNotEmpty == true
-          ? unit['guests'].toString()
-          : '2 Guests',
+          ? '${unit['guests']} Guests'
+          : '',
     );
     _unitBedController = TextEditingController(
       text: unit['bedSummary']?.toString().isNotEmpty == true
           ? unit['bedSummary'].toString()
-          : (unit['beds'] != null ? '${unit['beds']} beds' : '1 extra large double bed'),
+          : (unit['beds'] != null ? '${unit['beds']} beds' : ''),
     );
     _unitBathController = TextEditingController(
       text: unit['bathrooms']?.toString().isNotEmpty == true
           ? '${unit['bathrooms']} Bathroom'
-          : '1 Bathroom',
+          : '',
+    );
+    _unitRoomsController = TextEditingController(
+      text: unit['roomsCount']?.toString() ?? '',
     );
     _unitPriceController = TextEditingController(
       text: unit['basePrice']?.toString().isNotEmpty == true
           ? '₹ ${unit['basePrice']} / night'
-          : '₹ 2,500 / night',
+          : '',
     );
     _unitCategoryController = TextEditingController(
       text: unit['purpose']?.toString().isNotEmpty == true
           ? unit['purpose'].toString()
-          : 'Stay / Accomadation',
+          : '',
     );
   }
 
@@ -115,6 +120,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
     _unitBedController.dispose();
     _unitBathController.dispose();
     _unitPriceController.dispose();
+    _unitRoomsController.dispose();
     _unitCategoryController.dispose();
     super.dispose();
   }
@@ -226,7 +232,19 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
     }
   }
 
-  void _onDeleteEventUnit(int index) {
+  Future<void> _onDeleteEventUnit(int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete unit?'),
+        content: const Text('This event unit will be removed from your listing.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() {
       final updated = List<Map<String, dynamic>>.from(_draft.units)..removeAt(index);
       _draft = _draft.copyWith(units: updated);
@@ -357,6 +375,8 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
                     const SizedBox(height: 10),
                     _buildSummaryField(label: 'Room Type', controller: _unitRoomTypeController),
                     const SizedBox(height: 14),
+                    _buildSummaryField(label: 'No. of rooms of this type', controller: _unitRoomsController),
+                    const SizedBox(height: 14),
                     _buildSummaryField(label: 'Guests', controller: _unitGuestsController),
                     const SizedBox(height: 14),
                     _buildSummaryField(label: 'Bed', controller: _unitBedController),
@@ -457,7 +477,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Unit ${idx + 1} (${isEvent ? 'Events Booking' : 'Accommodations'})',
+                              'Unit {isEvent ? 'Events Booking' : 'Accommodations'})',
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -616,8 +636,6 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
             ),
           ],
         ),
-          ],
-        ),
       ),
     );
   }
@@ -698,3 +716,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -6,7 +6,12 @@ import '../../../services/auth_service.dart';
 import '../../../services/host_api_service.dart';
 import 'widgets/revenue_wave_chart.dart';
 import 'host_screen_5_property_type.dart';
+import 'host_bookings_list_screen.dart';
+import 'host_availability_screen.dart';
+import 'host_messages_screen.dart';
+import 'host_profile_screen.dart';
 
+/// Figma: frame 1228744522 (node 1:3449)
 class HostDashboardScreen extends StatefulWidget {
   static const String routeName = AppRoutes.hostHome;
   final String? userName;
@@ -319,9 +324,12 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                 children: [
                   _buildHomeTab(context),
                   const HostBookingsListScreen(),
-                  const HostMyPropertyListScreen(),
-                  const HostEarningsAnalyticsScreen(),
-                  HostMoreMenuScreen(userName: _hostName),
+                  const HostAvailabilityRatesScreen(),
+                  const HostMessagesScreen(),
+                  HostProfileScreen(
+                    userName: _hostName,
+                    onManageListings: _handleNavigateToPropertyWizard,
+                  ),
                 ],
               ),
             ],
@@ -411,25 +419,21 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      _greeting.isNotEmpty ? _greeting : 'Hello, $_hostName 👋',
-                      style: GoogleFonts.poppins(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E1E24),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 1),
                 Text(
                   _subGreeting,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
                     color: const Color(0xFF757585),
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  _greeting.isNotEmpty ? _greeting : 'Hello, $_hostName 👋',
+                  style: GoogleFonts.poppins(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E1E24),
                   ),
                 ),
               ],
@@ -699,20 +703,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   }
 
   Widget _buildRecentBookingsSection() {
-    final list = _recentBookings.isNotEmpty
-        ? _recentBookings
-        : [
-            {
-              'bookingId': 'BK-1001',
-              'propertyName': 'See view Villa',
-              'propertyImage': 'assets/images/host_villa_sample.png',
-              'dateRange': '20 May - 24 May',
-              'checkInDetails': 'Check In Friday 14 aug\nout 16 aug',
-              'amount': 24000,
-              'currency': '₹',
-              'status': 'Conform',
-            }
-          ];
+    final list = _recentBookings;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,18 +717,53 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        ...list.map((booking) => _buildBookingCard(booking)),
+        if (list.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'No recent bookings',
+              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF757585)),
+            ),
+          )
+        else
+          ...list.map((booking) => _buildBookingCard(booking)),
       ],
     );
   }
 
+  String _formatInr(num v) {
+    // Indian digit grouping: 1,24,256
+    final s = v.round().toString();
+    if (s.length <= 3) return s;
+    final last3 = s.substring(s.length - 3);
+    var rest = s.substring(0, s.length - 3);
+    final parts = <String>[];
+    while (rest.length > 2) {
+      parts.insert(0, rest.substring(rest.length - 2));
+      rest = rest.substring(0, rest.length - 2);
+    }
+    if (rest.isNotEmpty) parts.insert(0, rest);
+    return 'last3';
+  }
+
   Widget _buildBookingCard(Map<String, dynamic> booking) {
-    final title = (booking['propertyName'] ?? 'Property').toString();
-    final dates = (booking['dateRange'] ?? '').toString();
-    final checkIn = (booking['checkInDetails'] ?? '').toString();
-    final amount = booking['amount'] != null ? '${booking['currency'] ?? '₹'} ${booking['amount']}' : '₹ 24,000';
-    final status = (booking['status'] ?? 'Conform').toString();
+    final isEvent = booking['type']?.toString() == 'event';
+    final title = (booking['title'] ?? booking['propertyName'] ?? 'Property').toString();
+    final details = booking['details'] is List
+        ? (booking['details'] as List).map((e) => e.toString()).toList()
+        : <String>[];
+    final currency = (booking['currency'] ?? '₹').toString();
+    final amount = booking['amount'] as num?;
+    final taxes = booking['taxes'] as num?;
+    final status = (booking['status'] ?? '').toString();
+    final countdown = (booking['countdown'] ?? '').toString();
     final isConfirmed = status.toLowerCase() == 'conform' || status.toLowerCase() == 'confirmed';
+
+    String priceText = '';
+    if (amount != null) {
+      priceText = '$currency ${_formatInr(amount)}';
+      if (taxes != null) priceText += ' + ${_formatInr(taxes)} Taxes and charges';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -757,86 +783,81 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: 95,
+            child: Container(
+              width: 70,
               height: 70,
-              child: Image.asset(
-                'assets/images/host_villa_sample.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFFF2EFFD),
-                  child: const Icon(Icons.villa_rounded, color: Color(0xFF5E42C2), size: 36),
-                ),
+              color: const Color(0xFFF2EFFD),
+              child: Icon(
+                isEvent ? Icons.celebration_rounded : Icons.villa_rounded,
+                color: const Color(0xFF5E42C2),
+                size: 34,
               ),
             ),
           ),
           const SizedBox(width: 12),
-
-          // Title, Dates, Check-in details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E1E24),
-                  ),
-                ),
-                if (dates.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    dates,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF757585),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1E1E24),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-                if (checkIn.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                    if (status.isNotEmpty)
+                      Text(
+                        status,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: isConfirmed ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                        ),
+                      ),
+                  ],
+                ),
+                if (countdown.isNotEmpty)
                   Text(
-                    checkIn,
+                    countdown,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFFA0A0B2),
-                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFE65100),
+                    ),
+                  ),
+                for (final line in details)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      line,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11.5,
+                        color: const Color(0xFF757585),
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                if (priceText.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    priceText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E1E24),
                     ),
                   ),
                 ],
               ],
             ),
-          ),
-
-          // Price and Confirmation Badge
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E1E24),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                status,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isConfirmed ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -867,18 +888,18 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
           ),
           _buildNavItem(
             index: 2,
-            icon: Icons.store_rounded,
-            label: 'Property',
+            icon: Icons.event_available_rounded,
+            label: 'Availability\n& rate',
           ),
           _buildNavItem(
             index: 3,
-            icon: Icons.access_time_rounded,
-            label: 'Earning',
+            icon: Icons.chat_bubble_outline_rounded,
+            label: 'Messages',
           ),
           _buildNavItem(
             index: 4,
-            icon: Icons.more_horiz_rounded,
-            label: 'More',
+            icon: Icons.person_outline_rounded,
+            label: 'Profile',
           ),
         ],
       ),
@@ -894,10 +915,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
 
     return InkWell(
       onTap: () {
-        if (index == 2) {
-          _handleNavigateToPropertyWizard();
-          return;
-        }
         setState(() => _currentIndex = index);
       },
       borderRadius: BorderRadius.circular(12),
@@ -914,8 +931,10 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             const SizedBox(height: 2),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 10.5,
+                height: 1.1,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? const Color(0xFF5E42C2) : const Color(0xFF757585),
               ),
@@ -938,76 +957,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
 }
 
 // ── Lightweight Placeholder Tabs ──────────────────────────────────────────────
-class HostBookingsListScreen extends StatelessWidget {
-  const HostBookingsListScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Text(
-          'No guest bookings yet',
-          style: TextStyle(color: Colors.grey, fontSize: 15),
-        ),
-      ),
-    );
-  }
-}
-
-class HostMyPropertyListScreen extends StatelessWidget {
-  const HostMyPropertyListScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Text(
-          'Your listed properties will appear here',
-          style: TextStyle(color: Colors.grey, fontSize: 15),
-        ),
-      ),
-    );
-  }
-}
-
-class HostEarningsAnalyticsScreen extends StatelessWidget {
-  const HostEarningsAnalyticsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Text(
-          'Host earnings analytics coming soon',
-          style: TextStyle(color: Colors.grey, fontSize: 15),
-        ),
-      ),
-    );
-  }
-}
-
-class HostMoreMenuScreen extends StatelessWidget {
-  final String? userName;
-
-  const HostMoreMenuScreen({super.key, this.userName});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Text(
-          'Host settings and additional options',
-          style: TextStyle(color: Colors.grey, fontSize: 15),
-        ),
-      ),
-    );
-  }
-}
-
 class HostRatingsReviewsScreen extends StatelessWidget {
   const HostRatingsReviewsScreen({super.key});
 
@@ -1032,3 +981,7 @@ class HostRatingsReviewsScreen extends StatelessWidget {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -5,6 +5,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_6_property_count.dart';
 
+/// Figma: frame 1228744500 (node 1:897)
 class HostScreen5PropertyType extends StatefulWidget {
   final HostUpdatedPropertyDraft? draft;
 
@@ -246,3 +247,7 @@ class _HostScreen5PropertyTypeState extends State<HostScreen5PropertyType> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -1,4 +1,6 @@
 // Barrel export for host_updated module
+// Figma file: zaatra-host-side (key 8a0HMGb607tIQJXdzPHUwy). Each screen's class comment lists its frame and
+// node id; FIGMA_MAP.md has the same information as a frame -> file table.
 export '../../../models/host_updated_property_draft_model.dart';
 export 'widgets/host_components.dart';
 export 'widgets/revenue_wave_chart.dart';
@@ -27,4 +29,31 @@ export 'host_event_screen_11_event_types.dart';
 export 'host_event_screen_12_venue_details.dart';
 export 'host_event_screen_13_capacity_stage_dining.dart';
 export 'host_event_screen_14_bridal_rooms.dart';
+export 'host_event_screen_15_venue_facilities.dart';
+export 'host_event_screen_16_outdoor_features.dart';
+export 'host_event_screen_17_unit_pricing.dart';
+export 'host_event_screen_18_rate_plans.dart';
+export 'host_event_screen_19_alcohol_policy.dart';
+export 'host_event_screen_20_payment_refund_policy.dart';
+export 'widgets/host_form_widgets.dart';
+export 'host_bookings_list_screen.dart';
+export 'host_booking_details_screen.dart';
+export 'host_collect_payment_screen.dart';
+export 'host_payment_success_screen.dart';
+export 'host_otp_confirm_screen.dart';
+export 'host_rate_customer_screen.dart';
+export 'host_cancel_booking_screen.dart';
+export 'host_book_offline_screen.dart';
+export 'host_availability_screen.dart';
+export 'host_date_detail_screen.dart';
+export 'host_block_dates_screen.dart';
+export 'host_slot_timings_screen.dart';
+export 'host_venue_rates_view.dart';
+export 'host_messages_screen.dart';
+export 'host_conversation_screen.dart';
+export 'host_profile_screen.dart';
 export 'host_screens_gallery_screen.dart';
+
+
+********************************************************************************
+================================================================================

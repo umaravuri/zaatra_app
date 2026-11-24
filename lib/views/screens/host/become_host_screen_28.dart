@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/navigation/app_navigator.dart';
 import '../host_updated/host_dashboard_screen.dart';
 
+/// Figma: frame 1228744484 (node 1:17)
 class BecomeHostScreen extends StatelessWidget {
   final String? phoneNumber;
   final bool isExistingHost;
@@ -199,3 +200,7 @@ class BecomeHostScreen extends StatelessWidget {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

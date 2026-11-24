@@ -3,8 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_service.dart';
 import '../../../services/host_api_service.dart';
+import 'host_dashboard_screen.dart';
 import 'widgets/host_components.dart';
 
+/// Figma: frame 1228744498 (node 1:790)
+/// Figma: frame 1228744499 (node 1:840)
 class HostScreen24Registration extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -53,6 +56,16 @@ class _HostScreen24RegistrationState extends State<HostScreen24Registration> {
       return;
     }
 
+    if (!_certifiedLegitimate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please certify that this is a legitimate business to proceed.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
@@ -70,27 +83,30 @@ class _HostScreen24RegistrationState extends State<HostScreen24Registration> {
       final guests = int.tryParse(firstUnit['guests']?.toString() ?? '2') ?? 2;
       final price = double.tryParse(firstUnit['basePrice']?.toString() ?? '2500') ?? 2500.0;
 
-      // Submit property payload via legacy service
-      await HostService.registerProperty(
-        propertyType: updated.propertyType.isNotEmpty ? updated.propertyType : 'Hotel',
-        propertyName: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
-        title: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
-        type: updated.propertyType.isNotEmpty ? updated.propertyType : 'Hotel',
-        location: updated.city.isNotEmpty ? '${updated.city}, ${updated.country}' : 'Hyderabad, INDIA',
-        city: updated.city.isNotEmpty ? updated.city : 'Hyderabad',
-        country: updated.country.isNotEmpty ? updated.country : 'INDIA',
-        latitude: updated.latitude,
-        longitude: updated.longitude,
-        bedrooms: bedrooms,
-        bathrooms: bathrooms,
-        guests: guests,
-        pricePerNight: price,
-        description: 'Complete listing published with all 3 steps verified.',
-        amenities: updated.facilities,
-      );
+      // STATIC: skip the legacy network registration while running on static data.
+      if (!HostApiService.useStaticData) {
+        // Submit property payload via legacy service
+        await HostService.registerProperty(
+          propertyType: updated.propertyType.isNotEmpty ? updated.propertyType : 'Hotel',
+          propertyName: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
+          title: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
+          type: updated.propertyType.isNotEmpty ? updated.propertyType : 'Hotel',
+          location: updated.city.isNotEmpty ? '${updated.city}, ${updated.country}' : 'Hyderabad, INDIA',
+          city: updated.city.isNotEmpty ? updated.city : 'Hyderabad',
+          country: updated.country.isNotEmpty ? updated.country : 'INDIA',
+          latitude: updated.latitude,
+          longitude: updated.longitude,
+          bedrooms: bedrooms,
+          bathrooms: bathrooms,
+          guests: guests,
+          pricePerNight: price,
+          description: 'Complete listing published with all 3 steps verified.',
+          amenities: updated.facilities,
+        );
+      }
 
       // Publish property listing via API 8
-      await HostApiService.publishProperty(
+      final publishRes = await HostApiService.publishProperty(
         propertyId: updated.propertyId,
         price: price,
       );
@@ -98,19 +114,36 @@ class _HostScreen24RegistrationState extends State<HostScreen24Registration> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
+      if (publishRes['success'] != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(publishRes['message']?.toString() ?? 'Could not publish the listing. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       if (openLater) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Listing draft saved. You can open it later from Dashboard.')),
         );
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HostDashboardScreen()),
+          (route) => false,
+        );
       } else {
         _showSuccessDialog();
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      // Even if network or API error occurs, display confirmation for onboarding test flow
-      _showSuccessDialog();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration failed: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -434,9 +467,13 @@ class _CongratulationsDialog extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  // Clear onboarding stack and return to Host Dashboard
-                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  // Close the dialog, clear the onboarding stack and open the Host Dashboard
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const HostDashboardScreen()),
+                    (route) => false,
+                  );
                 },
                 child: Text(
                   'Go Home',
@@ -526,3 +563,6 @@ class _ConfettiPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+********************************************************************************
+================================================================================

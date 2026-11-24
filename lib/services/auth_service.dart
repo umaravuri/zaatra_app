@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import '../core/config/app_env.dart';
 import '../views/screens/authorization/login_screen_115.dart';
 import '../views/screens/authorization/role_selection_screen_27.dart';
 import '../views/screens/customer/customer-stay/customer_home_screen_38.dart';
 import '../views/screens/driver/driver-main/driver_home_dashboard_screen_83.dart';
-import '../views/screens/host/become_host_screen_28.dart';
+import '../views/screens/host_updated/host_dashboard_screen.dart';
 
 class AuthService {
   // Session Constants (30-Day Lifespan)
@@ -39,7 +40,7 @@ class AuthService {
     final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
     final cleanDigits = phone.replaceAll(RegExp(r'[^0-9]'), '');
     final resolvedEmail = (email != null && email.trim().isNotEmpty) ? email.trim() : '$cleanDigits@zaatra.com';
-    final resolvedPassword = (password != null && password.trim().isNotEmpty) ? password.trim() : 'ZaatraOTP@123';
+    final resolvedPassword = (password != null && password.trim().isNotEmpty) ? password.trim() : AppEnv.defaultAccountPassword;
 
     final body = {
       'name': name,
@@ -89,7 +90,8 @@ class AuthService {
     // Normalize response
     if (result['success'] == true) {
       final data = result['data'] is Map ? result['data'] : result;
-      final extractedOtp = (data['otp'] ?? result['otp'])?.toString() ?? '123456';
+      // Never invent an OTP on the client; empty means the server did not return one.
+      final extractedOtp = (data['otp'] ?? result['otp'])?.toString() ?? '';
       final normalizedPhone = (data['phone'] ?? result['phone'] ?? formattedPhone).toString();
 
       return {
@@ -283,6 +285,8 @@ class AuthService {
         await prefs.setString('currentPhone', formattedPhone);
         await prefs.setString('selectedRole', role.toLowerCase());
         await prefs.setString('currentUserRole', role.toLowerCase());
+        await prefs.setString(keyActiveRole, role.toLowerCase());
+        await prefs.setString('lastActiveRole', role.toLowerCase());
         await prefs.setString('user_role_$cleanDigits', role.toLowerCase());
         await prefs.setString('user_role_$tenDigits', role.toLowerCase());
       } catch (_) {}
@@ -786,7 +790,7 @@ class AuthService {
       case 'customer':
         return const CustomerHomeScreen();
       case 'host':
-        return BecomeHostScreen(phoneNumber: phone, isExistingHost: true);
+        return const HostDashboardScreen();
       default:
         return const RoleSelectionScreen();
     }
@@ -850,3 +854,7 @@ class AuthService {
     }
   }
 }
+
+
+********************************************************************************
+================================================================================

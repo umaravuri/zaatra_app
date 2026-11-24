@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_23_guest_pay.dart';
 
+/// Figma: frame 1228744495 (node 1:681)
+/// Figma: frame 1228744496 (node 1:720)
 class HostScreen22GstPurpose extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -39,6 +42,15 @@ class _HostScreen22GstPurposeState extends State<HostScreen22GstPurpose> {
   }
 
   void _onContinue() async {
+    final error = (_isGstRegistered ? HostValidators.gstNumber(_gstController.text) : null) ??
+        HostValidators.panNumber(_panController.text);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final updated = _draft.copyWith(
       isGstRegistered: _isGstRegistered,
       gstNumber: _isGstRegistered ? _gstController.text.trim().toUpperCase() : '',
@@ -232,3 +244,7 @@ class _HostScreen22GstPurposeState extends State<HostScreen22GstPurpose> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_9_channel_manager.dart';
 
+/// Figma: frame 1228744503 (node 1:1041)
 class HostScreen8LocationMap extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -33,11 +35,11 @@ class _HostScreen8LocationMapState extends State<HostScreen8LocationMap> {
   void initState() {
     super.initState();
     _draft = widget.draft;
-    _locationController = TextEditingController(text: _draft.locationInput.isNotEmpty ? _draft.locationInput : 'Madhapur, Hyderabad');
-    _hNoController = TextEditingController(text: _draft.hNo.isNotEmpty ? _draft.hNo : 'Plot 42');
-    _streetController = TextEditingController(text: _draft.street.isNotEmpty ? _draft.street : 'Hitech City Main Road');
-    _cityController = TextEditingController(text: _draft.city.isNotEmpty ? _draft.city : 'Hyderabad');
-    _postalCodeController = TextEditingController(text: _draft.postalCode.isNotEmpty ? _draft.postalCode : '500081');
+    _locationController = TextEditingController(text: _draft.locationInput);
+    _hNoController = TextEditingController(text: _draft.hNo);
+    _streetController = TextEditingController(text: _draft.street);
+    _cityController = TextEditingController(text: _draft.city);
+    _postalCodeController = TextEditingController(text: _draft.postalCode);
     _selectedCountry = _draft.country.isNotEmpty ? _draft.country : 'INDIA';
     _updateAddressWithPin = _draft.updateAddressWithPin;
     _lat = _draft.latitude;
@@ -55,6 +57,16 @@ class _HostScreen8LocationMapState extends State<HostScreen8LocationMap> {
   }
 
   void _onContinue() async {
+    final error = HostValidators.required(_streetController.text, 'Street name') ??
+        HostValidators.required(_cityController.text, 'City') ??
+        HostValidators.postalCode(_postalCodeController.text);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final updated = _draft.copyWith(
       locationInput: _locationController.text.trim(),
       hNo: _hNoController.text.trim(),
@@ -500,3 +512,7 @@ class _StylizedMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
+********************************************************************************
+================================================================================

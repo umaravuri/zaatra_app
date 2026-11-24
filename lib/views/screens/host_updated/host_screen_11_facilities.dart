@@ -5,6 +5,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_12_facility_pricing.dart';
 
+/// Figma: frame 1228744506 (node 1:1194)
 class HostScreen11Facilities extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -318,3 +319,7 @@ class _HostScreen11FacilitiesState extends State<HostScreen11Facilities> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

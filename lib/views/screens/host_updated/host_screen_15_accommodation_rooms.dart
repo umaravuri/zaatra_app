@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 
+/// Figma: frame 1228744515 (node 1:2312)
 class HostScreen15AccommodationRooms extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -106,13 +108,8 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
   // 11. Photos
   final List<XFile> _pickedPhotos = [];
   final ImagePicker _picker = ImagePicker();
-  final List<String> _samplePhotos = const [
-    'assets/images/event_unit_bedroom_sample.png',
-    'assets/images/sample_property_1.png',
-    'assets/images/sample_property_2.png',
-    'assets/images/sample_property_3.png',
-    'assets/images/sample_property_4.png',
-  ];
+  // No pre-loaded sample photos; the host adds their own.
+  final List<String> _samplePhotos = const [];
 
   final ScrollController _scrollController = ScrollController();
 
@@ -157,6 +154,15 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
       return;
     }
 
+    final error = HostValidators.required(_roomsCountController.text, 'Number of rooms') ??
+        HostValidators.amount(_priceController.text, 'Price');
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final photoPaths = _pickedPhotos.isNotEmpty
         ? _pickedPhotos.map((f) => f.path).toList()
         : _samplePhotos;
@@ -164,7 +170,7 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
     final accommodationUnit = {
       'unitId': 'unit_${DateTime.now().millisecondsSinceEpoch}',
       'purpose': 'Stay / Accommodation',
-      'unitType': 'Double Bedroom',
+      'unitType': _selectedRoomName,
       'roomName': _selectedRoomName,
       'roomsCount': _roomsCountController.text.trim(),
       'guests': _guestCount.toString(),
@@ -198,9 +204,7 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
       step: 15,
       propertyId: updatedDraft.propertyId,
       payload: {
-        'bookingAcceptance': 'instant',
-        'roomsCount': int.tryParse(_roomsCountController.text.trim()) ?? 2,
-        'roomSize': '25 Sqm',
+        'roomsCount': int.tryParse(_roomsCountController.text.trim()) ?? 1,
         'beds': {
           'singleBedCount': _singleBeds,
           'doubleBedCount': _doubleBeds,
@@ -212,7 +216,7 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Accommodation Unit (Double Bedroom) added successfully!'),
+        content: Text('Accommodation unit added successfully!'),
         backgroundColor: Color(0xFF2E7D32),
       ),
     );
@@ -955,3 +959,7 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

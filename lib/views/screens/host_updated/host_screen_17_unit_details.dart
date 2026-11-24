@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_18_upload_photos.dart';
 
+/// Figma: frame 1228744490 (node 1:277)
+/// Figma: frame 1228744513 (node 1:1745)
 class HostScreen17UnitDetails extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic>? currentUnit;
@@ -95,11 +98,13 @@ class _HostScreen17UnitDetailsState extends State<HostScreen17UnitDetails> {
   void initState() {
     super.initState();
     _draft = widget.draft;
-    _roomsCountController = TextEditingController(text: '2');
+    // Restore values when editing an existing unit; otherwise start empty.
+    final unit = widget.currentUnit ?? const <String, dynamic>{};
+    _roomsCountController = TextEditingController(text: unit['roomsCount']?.toString() ?? '1');
     _roomSizeController = TextEditingController(text: '25');
-    _priceController = TextEditingController(text: '4500');
-    _propertyRulesController = TextEditingController(text: 'No loud music after 10 PM. Valid Govt ID required.');
-    _safetySecurityController = TextEditingController(text: 'Smoke detectors and fire extinguishers installed.');
+    _priceController = TextEditingController(text: unit['pricePerNight']?.toString() ?? '');
+    _propertyRulesController = TextEditingController(text: unit['rules']?.toString() ?? '');
+    _safetySecurityController = TextEditingController(text: unit['safety']?.toString() ?? '');
   }
 
   @override
@@ -112,20 +117,47 @@ class _HostScreen17UnitDetailsState extends State<HostScreen17UnitDetails> {
     super.dispose();
   }
 
-  double get _basePrice => double.tryParse(_priceController.text.replaceAll(',', '')) ?? 4500.0;
+  double get _basePrice => double.tryParse(_priceController.text.replaceAll(',', '')) ?? 0.0;
   double get _zaatraEarnings => _basePrice * 0.73; // ~INR 3,285 on 4,500 after 20% comm + taxes
 
   void _onNext() async {
+    final roomsError = HostValidators.required(_roomsCountController.text, 'Number of rooms');
+    final priceError = HostValidators.amount(_priceController.text, 'Price');
+    final totalBeds = _singleBeds + _doubleBeds + _largeBeds + _extraLargeBeds;
+    final error = roomsError ??
+        priceError ??
+        (totalBeds == 0 ? 'Select at least one bed' : null);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    // Capacity is derived from the beds selected: 1 guest per single bed, 2 per other bed.
+    final guests = _singleBeds + 2 * (_doubleBeds + _largeBeds + _extraLargeBeds);
+    final bedParts = <String>[
+      if (_singleBeds > 0) '$_singleBeds single',
+      if (_doubleBeds > 0) '$_doubleBeds double',
+      if (_largeBeds > 0) '$_largeBeds large',
+      if (_extraLargeBeds > 0) '$_extraLargeBeds extra large',
+    ];
+
     final unitData = {
       ...?widget.currentUnit,
       'bookingAcceptMode': _bookingAcceptMode,
       'roomsCount': _roomsCountController.text.trim(),
-      'beds': {
+      'bedCounts': {
         'single': _singleBeds,
         'double': _doubleBeds,
         'large': _largeBeds,
         'extraLarge': _extraLargeBeds,
       },
+      'beds': totalBeds,
+      'bedSummary': bedParts.join(', '),
+      'guests': guests.toString(),
+      'bathrooms': 1,
+      'basePrice': _priceController.text.replaceAll(',', '').trim(),
       'roomSize': '${_roomSizeController.text.trim()} $_roomSizeUnit',
       'smoking': _smokingAllowed,
       'bathroomPrivate': _bathroomPrivate,
@@ -938,3 +970,7 @@ class _HostScreen17UnitDetailsState extends State<HostScreen17UnitDetails> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

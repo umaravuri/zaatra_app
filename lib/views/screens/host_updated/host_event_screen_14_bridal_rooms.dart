@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
+import 'host_event_screen_15_venue_facilities.dart';
 
+/// Figma: frame 1228744520 (node 1:2993)
 class HostEventScreen14BridalRooms extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic> eventData;
@@ -61,28 +63,10 @@ class _HostEventScreen14BridalRoomsState extends State<HostEventScreen14BridalRo
     super.dispose();
   }
 
-  void _onSaveUnit() {
-    final eventUnit = {
-      'unitId': 'unit_${DateTime.now().millisecondsSinceEpoch}',
-      'unitType': 'Banquet Hall',
-      'purpose': _eventData['purpose'] ?? 'Events Booking',
-      'venueType': _eventData['venueType'] ?? 'Banquet Hall',
-      'bookingMode': _eventData['bookingMode'] ?? 'Review every request',
-      'hallCount': _eventData['hallCount'] ?? 2,
-      'eventCategories': _eventData['eventCategories'] ?? {},
-      'views': _eventData['views'] ?? [],
-      'indoorOutdoor': _eventData['indoorOutdoor'] ?? ['Indoor'],
-      'expectedSpaces': _eventData['expectedSpaces'] ?? ['Hall'],
-      'hallDimensions': _eventData['hallDimensions'] ?? {},
-      'seatingOptions': _eventData['seatingOptions'] ?? ['Indoor Seating'],
-      'seatingCapacity': _eventData['seatingCapacity'] ?? '2,000(guests)',
-      'hallCapacity': _eventData['hallCapacity'] ?? '3,000(guests)',
-      'stageLocations': _eventData['stageLocations'] ?? [],
-      'stageDimensions': _eventData['stageDimensions'] ?? {},
-      'diningCoveredInHall': _eventData['diningCoveredInHall'] ?? false,
-      'diningLocations': _eventData['diningLocations'] ?? [],
-      'diningDimensions': _eventData['diningDimensions'] ?? {},
-      'diningCapacity': _eventData['diningCapacity'] ?? '1,000(guests)',
+  void _onSaveUnit() async {
+    // Everything entered so far; the unit is saved on the last event step.
+    final eventData = <String, dynamic>{
+      ..._eventData,
       'bridalRoom': {
         'hasRoom': _hasBridalRoom,
         'amenities': _bridalAmenities.toList(),
@@ -100,20 +84,15 @@ class _HostEventScreen14BridalRoomsState extends State<HostEventScreen14BridalRo
         'count': _changingRoomCountController.text.trim(),
         'amenities': _changingAmenities.toList(),
       },
-      'basePrice': '150000',
     };
 
-    final updatedUnits = List<Map<String, dynamic>>.from(_draft.units)..add(eventUnit);
-    final updatedDraft = _draft.copyWith(units: updatedUnits);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Event Unit (Banquet Hall) registered successfully!'),
-        backgroundColor: Color(0xFF2E7D32),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HostEventScreen15VenueFacilities(draft: _draft, eventData: eventData),
       ),
     );
-
-    Navigator.pop(context, updatedDraft);
+    if (result is HostUpdatedPropertyDraft && mounted) Navigator.pop(context, result);
   }
 
   @override
@@ -262,7 +241,7 @@ class _HostEventScreen14BridalRoomsState extends State<HostEventScreen14BridalRo
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: HostBottomButton(
-                    text: 'Save Event Unit',
+                    text: 'Continue',
                     onPressed: _onSaveUnit,
                   ),
                 ),
@@ -438,3 +417,7 @@ class _HostEventScreen14BridalRoomsState extends State<HostEventScreen14BridalRo
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

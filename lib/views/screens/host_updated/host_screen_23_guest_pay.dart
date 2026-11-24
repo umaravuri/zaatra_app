@@ -4,6 +4,7 @@ import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_24_registration.dart';
 
+/// Figma: frame 1228744497 (node 1:755)
 class HostScreen23GuestPay extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -217,3 +218,7 @@ class _HostScreen23GuestPayState extends State<HostScreen23GuestPay> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_22_gst_purpose.dart';
 
+/// Figma: frame 1228744493 (node 1:573)
+/// Figma: frame 1228744494 (node 1:619)
 class HostScreen21Verification extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -132,8 +135,36 @@ class _HostScreen21VerificationState extends State<HostScreen21Verification> {
     }
   }
 
+  String? _validate(bool isBusiness) {
+    if (!isBusiness) {
+      for (var i = 0; i < _ownerControllers.length; i++) {
+        final c = _ownerControllers[i];
+        final label = _ownerControllers.length > 1 ? ' (owner ${i + 1})' : '';
+        final e = HostValidators.required(c['firstName']?.text, 'First name$label') ??
+            HostValidators.required(c['lastName']?.text, 'Last name$label') ??
+            HostValidators.required(c['dob']?.text, 'Date of birth$label');
+        if (e != null) return e;
+      }
+      return null;
+    }
+    if (_selectedDesignation == 'Enter Location') return 'Select a designation';
+    if (_selectedBusinessType == 'Select') return 'Select a business type';
+    return HostValidators.required(_businessFirstNameController.text, 'First name') ??
+        HostValidators.required(_businessDobController.text, 'Date of birth') ??
+        HostValidators.mobile(_businessMobileController.text) ??
+        HostValidators.email(_businessEmailController.text) ??
+        HostValidators.required(_businessLegalNameController.text, 'Legal business name');
+  }
+
   void _onContinue() async {
     final isBusiness = _selectedEntityMode == _businessOption;
+    final error = _validate(isBusiness);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
 
     final ownersData = _ownerControllers.map((ctrls) {
       return {
@@ -558,10 +589,14 @@ class _HostScreen21VerificationState extends State<HostScreen21Verification> {
       },
     );
     if (picked != null) {
-      final formatted = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+      final formatted = "{picked.month.toString().padLeft(2, '0')}/${picked.year}";
       setState(() {
         controller.text = formatted;
       });
     }
   }
 }
+
+
+********************************************************************************
+================================================================================

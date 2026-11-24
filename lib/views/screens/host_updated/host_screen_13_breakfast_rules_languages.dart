@@ -5,6 +5,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_14_pet_policy.dart';
 
+/// Figma: frame 1228744508 (node 1:1385)
 class HostScreen13BreakfastRulesLanguages extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -397,3 +398,7 @@ class _HostScreen13BreakfastRulesLanguagesState extends State<HostScreen13Breakf
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

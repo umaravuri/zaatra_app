@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_11_facilities.dart';
 
+/// Figma: frame 1228744505 (node 1:1132)
 class HostScreen10PropertyNameRating extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -28,7 +30,7 @@ class _HostScreen10PropertyNameRatingState extends State<HostScreen10PropertyNam
     super.initState();
     _draft = widget.draft;
     _nameController = TextEditingController(
-      text: _draft.propertyName.isNotEmpty ? _draft.propertyName : 'The Blue Hotel & Suites',
+      text: _draft.propertyName,
     );
     _starRating = _draft.starRating.isNotEmpty ? _draft.starRating : 'N/A';
     _isChainOrGroup = _draft.isChainOrGroup;
@@ -41,6 +43,14 @@ class _HostScreen10PropertyNameRatingState extends State<HostScreen10PropertyNam
   }
 
   void _onContinue() async {
+    final error = HostValidators.required(_nameController.text, 'Property name');
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final updated = _draft.copyWith(
       propertyName: _nameController.text.trim(),
       starRating: _starRating,
@@ -117,7 +127,7 @@ class _HostScreen10PropertyNameRatingState extends State<HostScreen10PropertyNam
                         ),
                         decoration: InputDecoration(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          hintText: 'Enter your location',
+                          hintText: 'Hall 1',
                           hintStyle: GoogleFonts.poppins(
                             fontSize: 14,
                             color: const Color(0xFFA0A0B2),
@@ -296,3 +306,7 @@ class _HostScreen10PropertyNameRatingState extends State<HostScreen10PropertyNam
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

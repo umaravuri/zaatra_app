@@ -5,6 +5,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_10_property_name_rating.dart';
 
+/// Figma: frame 1228744504 (node 1:1102)
 class HostScreen9ChannelManager extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -160,3 +161,7 @@ class _HostScreen9ChannelManagerState extends State<HostScreen9ChannelManager> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

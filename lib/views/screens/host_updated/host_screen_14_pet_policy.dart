@@ -5,6 +5,7 @@ import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_15_property_hub.dart';
 
+/// Figma: frame 1228744509 (node 1:1475)
 class HostScreen14PetPolicy extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -189,3 +190,6 @@ class _HostScreen14PetPolicyState extends State<HostScreen14PetPolicy> {
     );
   }
 }
+
+********************************************************************************
+================================================================================

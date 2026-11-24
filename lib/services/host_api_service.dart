@@ -1,12 +1,32 @@
 import 'package:flutter/foundation.dart';
+import '../data/host_static_data.dart';
 import 'api_service.dart';
 
-/// Centralized service handling the 9 host-side backend APIs
+/// Centralized service handling the host-side backend APIs.
+///
+/// While [useStaticData] is true every method returns sample data from
+/// [HostStaticData] and never touches the network. Set it to false when the
+/// real APIs are integrated (then delete lib/data/host_static_data.dart).
+///
+/// In live mode a failed call returns `{'success': false, 'message': ...}` so
+/// callers can show a real error; it never pretends to have succeeded.
 class HostApiService {
   HostApiService._();
 
+  /// TEMPORARY: serve sample data instead of calling the backend.
+  static bool useStaticData = true;
+
   // Cached in-memory metadata
   static Map<String, dynamic>? _cachedMetadata;
+
+  /// Small delay so loading states are visible while running on static data.
+  static Future<void> _staticDelay() =>
+      Future<void>.delayed(const Duration(milliseconds: 250));
+
+  static Map<String, dynamic> _failure(String api, Object? error) {
+    debugPrint('HostApiService: $api failed: $error');
+    return {'success': false, 'message': error?.toString() ?? 'Request failed'};
+  }
 
   // ---------------------------------------------------------------------------
   // 1. Host Mobile Dashboard (Screen 1)
@@ -16,15 +36,19 @@ class HostApiService {
     String period = 'this_month',
     String? hostId,
   }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.dashboard(period); // STATIC
+    }
+
     try {
       final queryParams = <String, String>{
         'period': period,
         if (hostId != null && hostId.isNotEmpty) 'hostId': hostId,
       };
       final queryString = Uri(queryParameters: queryParams).query;
-      final endpoint = '/hosts/dashboard?$queryString';
 
-      final res = await ApiService.get(endpoint);
+      final res = await ApiService.get('/hosts/dashboard?$queryString');
       if (res['success'] == true && res['dashboard'] != null) {
         return res;
       }
@@ -34,11 +58,9 @@ class HostApiService {
       if (altRes['success'] == true && altRes['dashboard'] != null) {
         return altRes;
       }
-
-      return _getFallbackDashboard(period);
+      return _failure('getDashboard', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: getDashboard error: $e');
-      return _getFallbackDashboard(period);
+      return _failure('getDashboard', e);
     }
   }
 
@@ -51,21 +73,26 @@ class HostApiService {
       return {'success': true, 'metadata': _cachedMetadata};
     }
 
+    if (useStaticData) {
+      await _staticDelay();
+      _cachedMetadata = HostStaticData.propertiesMetadata(); // STATIC
+      return {'success': true, 'metadata': _cachedMetadata};
+    }
+
     try {
       final res = await ApiService.get('/hosts/properties/metadata');
       if (res['success'] == true && res['metadata'] != null) {
         _cachedMetadata = Map<String, dynamic>.from(res['metadata']);
         return res;
       }
-      return {'success': true, 'metadata': _getFallbackMetadata()};
+      return _failure('getPropertiesMetadata', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: getPropertiesMetadata error: $e');
-      return {'success': true, 'metadata': _getFallbackMetadata()};
+      return _failure('getPropertiesMetadata', e);
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Wizard Step Save API (Screens 2, 5, 6, 7, 8, 9, 10, 11, 13, 15)
+  // 3. Wizard Step Save API
   // POST /api/hosts/properties/wizard/step
   // ---------------------------------------------------------------------------
   static Future<Map<String, dynamic>> saveWizardStep({
@@ -74,6 +101,11 @@ class HostApiService {
     Map<String, dynamic>? payload,
     String? propertyId,
   }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.wizardStep(step: step, propertyId: propertyId); // STATIC
+    }
+
     final effectiveData = stepData ?? payload ?? <String, dynamic>{};
     final body = <String, dynamic>{
       'step': step,
@@ -83,32 +115,10 @@ class HostApiService {
 
     try {
       final res = await ApiService.post('/hosts/properties/wizard/step', body);
-      if (res['success'] == true) {
-        return res;
-      }
-      // If server unreachable, generate local propertyId fallback if needed
-      final resolvedPropId = propertyId ?? 'PROP-${DateTime.now().millisecondsSinceEpoch % 10000}';
-      return {
-        'success': true,
-        'message': 'Saved locally (offline)',
-        'currentStep': step,
-        'nextStep': step + 1,
-        'property': {
-          'propertyId': resolvedPropId,
-          'isDraft': true,
-          'status': 'draft',
-        },
-      };
+      if (res['success'] == true) return res;
+      return _failure('saveWizardStep', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: saveWizardStep error: $e');
-      final resolvedPropId = propertyId ?? 'PROP-${DateTime.now().millisecondsSinceEpoch % 10000}';
-      return {
-        'success': true,
-        'message': 'Saved locally ($e)',
-        'currentStep': step,
-        'nextStep': step + 1,
-        'property': {'propertyId': resolvedPropId, 'isDraft': true, 'status': 'draft'},
-      };
+      return _failure('saveWizardStep', e);
     }
   }
 
@@ -122,6 +132,15 @@ class HostApiService {
     double extraCharge = 0.0,
     String? propertyId,
   }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.customFacility( // STATIC
+        name: name,
+        provisionType: provisionType,
+        extraCharge: extraCharge,
+      );
+    }
+
     final body = {
       'name': name,
       'provisionType': provisionType,
@@ -131,24 +150,10 @@ class HostApiService {
 
     try {
       final res = await ApiService.post('/hosts/properties/metadata/facilities', body);
-      if (res['success'] == true) {
-        return res;
-      }
-      return {
-        'success': true,
-        'message': 'Facility created locally',
-        'facility': {
-          'name': name,
-          'provisionType': provisionType,
-          'extraCharge': extraCharge,
-          'isCustom': true,
-        },
-      };
+      if (res['success'] == true) return res;
+      return _failure('createCustomFacility', res['message']);
     } catch (e) {
-      return {
-        'success': true,
-        'facility': {'name': name, 'provisionType': provisionType, 'extraCharge': extraCharge, 'isCustom': true},
-      };
+      return _failure('createCustomFacility', e);
     }
   }
 
@@ -160,6 +165,11 @@ class HostApiService {
     required String language,
     String? propertyId,
   }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.customLanguage(language); // STATIC
+    }
+
     final body = {
       'language': language,
       if (propertyId != null && propertyId.isNotEmpty) 'propertyId': propertyId,
@@ -168,9 +178,9 @@ class HostApiService {
     try {
       final res = await ApiService.post('/hosts/properties/metadata/languages', body);
       if (res['success'] == true) return res;
-      return {'success': true, 'language': language};
+      return _failure('addCustomLanguage', res['message']);
     } catch (e) {
-      return {'success': true, 'language': language};
+      return _failure('addCustomLanguage', e);
     }
   }
 
@@ -187,6 +197,11 @@ class HostApiService {
       return {'success': true, 'count': 0, 'photos': <String>[]};
     }
 
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.uploadedPhotos(effectiveFiles.length); // STATIC
+    }
+
     try {
       final res = await ApiService.uploadMultipart(
         '/hosts/properties/upload-photos',
@@ -201,20 +216,9 @@ class HostApiService {
           'photos': List<String>.from(res['photos']),
         };
       }
-
-      // Fallback relative paths
-      final mockPhotos = List.generate(
-        effectiveFiles.length,
-        (i) => '/uploads/properties/photos-${DateTime.now().millisecondsSinceEpoch}-${i + 1}.jpg',
-      );
-      return {'success': true, 'count': effectiveFiles.length, 'photos': mockPhotos};
+      return _failure('uploadPropertyPhotos', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: uploadPropertyPhotos error: $e');
-      final mockPhotos = List.generate(
-        effectiveFiles.length,
-        (i) => '/uploads/properties/photos-${DateTime.now().millisecondsSinceEpoch}-${i + 1}.jpg',
-      );
-      return {'success': true, 'count': effectiveFiles.length, 'photos': mockPhotos};
+      return _failure('uploadPropertyPhotos', e);
     }
   }
 
@@ -223,15 +227,17 @@ class HostApiService {
   // GET /api/hosts/properties/wizard/draft
   // ---------------------------------------------------------------------------
   static Future<Map<String, dynamic>> getActiveDraft() async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.activeDraft(); // STATIC
+    }
+
     try {
       final res = await ApiService.get('/hosts/properties/wizard/draft');
-      if (res['success'] == true) {
-        return res;
-      }
-      return {'success': true, 'hasDraft': false};
+      if (res['success'] == true) return res;
+      return _failure('getActiveDraft', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: getActiveDraft error: $e');
-      return {'success': true, 'hasDraft': false};
+      return _failure('getActiveDraft', e);
     }
   }
 
@@ -243,6 +249,11 @@ class HostApiService {
     required String propertyId,
     required double price,
   }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.published(propertyId: propertyId, price: price); // STATIC
+    }
+
     final body = {
       'propertyId': propertyId,
       'price': price,
@@ -250,21 +261,10 @@ class HostApiService {
 
     try {
       final res = await ApiService.post('/hosts/properties/publish', body);
-      if (res['success'] == true) {
-        return res;
-      }
-      return {
-        'success': true,
-        'message': 'Property published successfully (local mode)',
-        'property': {'propertyId': propertyId, 'status': 'listed', 'price': price},
-      };
+      if (res['success'] == true) return res;
+      return _failure('publishProperty', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: publishProperty error: $e');
-      return {
-        'success': true,
-        'message': 'Property published successfully',
-        'property': {'propertyId': propertyId, 'status': 'listed', 'price': price},
-      };
+      return _failure('publishProperty', e);
     }
   }
 
@@ -273,155 +273,477 @@ class HostApiService {
   // GET /api/hosts/properties
   // ---------------------------------------------------------------------------
   static Future<Map<String, dynamic>> getHostProperties() async {
+    if (useStaticData) {
+      await _staticDelay();
+      final list = HostStaticData.properties(); // STATIC
+      return {'success': true, 'count': list.length, 'properties': list};
+    }
+
     try {
       final res = await ApiService.get('/hosts/properties');
-      if (res['success'] == true && res['properties'] != null) {
-        return res;
-      }
-      return {'success': true, 'count': 2, 'properties': _getFallbackProperties()};
+      if (res['success'] == true && res['properties'] != null) return res;
+      return _failure('getHostProperties', res['message']);
     } catch (e) {
-      debugPrint('HostApiService: getHostProperties error: $e');
-      return {'success': true, 'count': 2, 'properties': _getFallbackProperties()};
+      return _failure('getHostProperties', e);
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Offline & Default Fallbacks
+  // 10. Bookings (list, detail, payments, OTP, review, cancel, offline booking)
   // ---------------------------------------------------------------------------
-  static Map<String, dynamic> _getFallbackDashboard(String period) {
-    return {
-      'success': true,
-      'message': 'Host dashboard data fetched successfully',
-      'dashboard': {
-        'host': {
-          'hostId': 'H-101',
-          'name': 'Manohar',
-          'avatar': '/uploads/profiles/manohar.jpg',
-          'greeting': 'Hello, Manohar 👋',
-          'subGreeting': 'Good Morning !',
-        },
-        'kpis': {
-          'totalEarnings': {
-            'value': 124256,
-            'formatted': '₹ 1,24,256',
-            'growthBadge': '+12.9% This Month',
-            'growthValue': 12.9,
-          },
-          'occupancy': {
-            'percentage': 78,
-            'formatted': '78%',
-            'growthBadge': '+8% this month',
-            'growthValue': 8.0,
-          },
-        },
-        'recentUpdates': {
-          'propertyCount': 6,
-          'activeBookingsCount': 12,
-          'upcomingBookingsCount': 5,
-          'rating': 4.8,
-          'reviewsCount': 24,
-        },
-        'revenueOverview': {
-          'selectedPeriod': period == 'this_year'
-              ? 'This Year'
-              : (period == 'this_week' ? 'This Week' : 'This Month'),
-          'chart': {
-            'labels': ['1 May', '7 May', '14 May', '21 May', '31 May'],
-            'data': [40000, 75000, 95000, 125000, 160000],
-            'currency': '₹',
-          },
-        },
-        'recentBookings': [
-          {
-            'bookingId': 'BK-1001',
-            'propertyName': 'See view Villa',
-            'propertyImage': '/uploads/properties/sample_property.png',
-            'dateRange': '20 May - 24 May',
-            'checkInDetails': 'Check In Friday 14 aug out 16 aug',
-            'amount': 24000,
-            'currency': '₹',
-            'status': 'Conform',
-          },
-          {
-            'bookingId': 'BK-1002',
-            'propertyName': 'Royal Orchid Suites',
-            'propertyImage': '/uploads/properties/sample_property_2.png',
-            'dateRange': '26 May - 29 May',
-            'checkInDetails': 'Check In Sunday 26 May out 29 May',
-            'amount': 18500,
-            'currency': '₹',
-            'status': 'Pending',
-          },
-        ],
-      },
-    };
+
+  /// GET /api/hosts/bookings?status=active|upcoming|completed|cancelled
+  static Future<Map<String, dynamic>> getBookings(String status) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.bookings(status); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/bookings?status=$status');
+      if (res['success'] == true && res['bookings'] != null) return res;
+      return _failure('getBookings', res['message']);
+    } catch (e) {
+      return _failure('getBookings', e);
+    }
   }
 
-  static Map<String, dynamic> _getFallbackMetadata() {
-    return {
-      'categories': [
-        {'id': 'hotel', 'name': 'Hotel'},
-        {'id': 'villa', 'name': 'Villa'},
-        {'id': 'flats', 'name': 'Flats'},
-        {'id': 'room', 'name': 'Room'},
-        {'id': 'apartments', 'name': 'Apartments'},
-        {'id': 'farm_stay', 'name': 'Farm stay'},
-        {'id': 'resort', 'name': 'Resort'},
-        {'id': 'hall', 'name': 'Hall'},
-        {'id': 'convention_center', 'name': 'Convention Center'},
-        {'id': 'gardens_lawn', 'name': 'Gardens / Lawn'},
-        {'id': 'function_hall', 'name': 'Function Hall'},
-      ],
-      'listingScopes': [
-        {
-          'key': 'SINGLE_UNIT',
-          'title': 'One apartments / property with one or more rooms / venues for guests to book',
-        },
-        {
-          'key': 'MULTIPLE_UNITS',
-          'title': 'Multiple apartments / properties with one or more rooms / venues that guests book',
-        },
-      ],
-      'starRatings': ['N/A', '1', '2', '3', '4', '5'],
-      'facilities': [
-        'Restaurant', 'Power Backup', 'Room Service', 'Lift', 'Wifi', 'Parking',
-        'Bar', 'Security / CCTV', '24-hour front desk', 'Swimming Pool', 'Garden',
-        'Decoration', 'Terrace', 'Airport Shuttle', 'AC', 'Laundry', 'Charging rooms',
-        'Bonfire', 'Kitchen', 'BBQ', 'Sound System', 'DJ / Sounds', 'Stage', 'Catering',
-        'Accommodation rooms',
-      ],
-      'provisionTypes': ['Included', 'Extra Charge', 'On Request'],
-      'languages': [
-        'Assamese', 'Bengali', 'Gujarati', 'Hindi', 'Kannada', 'Kashmiri',
-        'Malayalam', 'Marathi', 'Malayali', 'Odia', 'Punjabi', 'Santali',
-        'Tamil', 'Telugu', 'Urdu', 'English',
-      ],
-      'unitTypes': [
-        'Single', 'Double', 'Twin', 'Twin / Double', 'Quadrapule', 'Suite',
-        'Family', 'Studio', 'Apartment', 'Single room', 'Dormitry Room',
-        'Bed in Dormitory', 'Flat',
-      ],
-    };
+  /// GET /api/hosts/bookings/:id
+  static Future<Map<String, dynamic>> getBooking(String id) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.booking(id); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/bookings/$id');
+      if (res['success'] == true && res['booking'] != null) return res;
+      return _failure('getBooking', res['message']);
+    } catch (e) {
+      return _failure('getBooking', e);
+    }
   }
 
-  static List<Map<String, dynamic>> _getFallbackProperties() {
-    return [
-      {
-        'propertyId': 'PROP-101',
-        'title': 'The Blue Hotel & Suites',
-        'type': 'Apartments',
-        'city': 'Hyderabad',
-        'price': 4500,
-        'status': 'listed',
-      },
-      {
-        'propertyId': 'PROP-102',
-        'title': 'See View Villa',
-        'type': 'Villa',
-        'city': 'Goa',
-        'price': 12000,
-        'status': 'draft',
-      },
-    ];
+  /// POST /api/hosts/bookings/:id/payments   kind: 'advance' | 'balance'
+  static Future<Map<String, dynamic>> collectPayment({
+    required String bookingId,
+    required String kind,
+    required String method,
+    required double amount,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.collectPayment( // STATIC
+        id: bookingId,
+        kind: kind,
+        method: method,
+        amount: amount,
+      );
+    }
+    try {
+      final res = await ApiService.post('/hosts/bookings/$bookingId/payments', {
+        'kind': kind,
+        'method': method,
+        'amount': amount,
+      });
+      if (res['success'] == true) return res;
+      return _failure('collectPayment', res['message']);
+    } catch (e) {
+      return _failure('collectPayment', e);
+    }
+  }
+
+  /// POST /api/hosts/bookings/:id/otp   otpNumber: 1 (check-in) or 2 (completion)
+  static Future<Map<String, dynamic>> verifyBookingOtp({
+    required String bookingId,
+    required int otpNumber,
+    required String otp,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.verifyOtp(id: bookingId, otpNumber: otpNumber, otp: otp); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/bookings/$bookingId/otp', {
+        'otpNumber': otpNumber,
+        'otp': otp,
+      });
+      if (res['success'] == true) return res;
+      return _failure('verifyBookingOtp', res['message']);
+    } catch (e) {
+      return _failure('verifyBookingOtp', e);
+    }
+  }
+
+  /// POST /api/hosts/bookings/:id/review
+  static Future<Map<String, dynamic>> submitCustomerReview({
+    required String bookingId,
+    required Map<String, int> ratings,
+    String comment = '',
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.submitReview(id: bookingId, ratings: ratings, comment: comment); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/bookings/$bookingId/review', {
+        'ratings': ratings,
+        'comment': comment,
+      });
+      if (res['success'] == true) return res;
+      return _failure('submitCustomerReview', res['message']);
+    } catch (e) {
+      return _failure('submitCustomerReview', e);
+    }
+  }
+
+  /// POST /api/hosts/bookings/:id/cancel
+  static Future<Map<String, dynamic>> cancelBooking({
+    required String bookingId,
+    required String reason,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.cancelBooking(id: bookingId, reason: reason); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/bookings/$bookingId/cancel', {'reason': reason});
+      if (res['success'] == true) return res;
+      return _failure('cancelBooking', res['message']);
+    } catch (e) {
+      return _failure('cancelBooking', e);
+    }
+  }
+
+  /// POST /api/hosts/bookings/offline
+  static Future<Map<String, dynamic>> createOfflineBooking(Map<String, dynamic> data) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.createOfflineBooking(data); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/bookings/offline', data);
+      if (res['success'] == true) return res;
+      return _failure('createOfflineBooking', res['message']);
+    } catch (e) {
+      return _failure('createOfflineBooking', e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. Availability calendar, block dates, slot timings, venue rates
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/hosts/availability?hall=&year=&month=
+  static Future<Map<String, dynamic>> getAvailability({
+    required String hall,
+    required int year,
+    required int month,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.availability(hall: hall, year: year, month: month); // STATIC
+    }
+    try {
+      final q = Uri(queryParameters: {'hall': hall, 'year': 'month'}).query;
+      final res = await ApiService.get('/hosts/availability?$q');
+      if (res['success'] == true && res['days'] != null) return res;
+      return _failure('getAvailability', res['message']);
+    } catch (e) {
+      return _failure('getAvailability', e);
+    }
+  }
+
+  /// POST /api/hosts/availability/block   dates: 'YYYY-MM-DD', slots: 1 and/or 2
+  static Future<Map<String, dynamic>> blockDates({
+    required String hall,
+    required List<String> dates,
+    required List<int> slots,
+    required String reason,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.blockDates(hall: hall, dates: dates, slots: slots, reason: reason); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/availability/block', {
+        'hall': hall,
+        'dates': dates,
+        'slots': slots,
+        'reason': reason,
+      });
+      if (res['success'] == true) return res;
+      return _failure('blockDates', res['message']);
+    } catch (e) {
+      return _failure('blockDates', e);
+    }
+  }
+
+  /// POST /api/hosts/availability/unblock
+  static Future<Map<String, dynamic>> unblockDates({
+    required String hall,
+    required List<String> dates,
+    required List<int> slots,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.unblockDates(hall: hall, dates: dates, slots: slots); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/availability/unblock', {
+        'hall': hall,
+        'dates': dates,
+        'slots': slots,
+      });
+      if (res['success'] == true) return res;
+      return _failure('unblockDates', res['message']);
+    } catch (e) {
+      return _failure('unblockDates', e);
+    }
+  }
+
+  /// PUT /api/hosts/availability/timings
+  static Future<Map<String, dynamic>> setSlotTimings({
+    required String slot1,
+    required String slot2,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.setSlotTimings(slot1: slot1, slot2: slot2); // STATIC
+    }
+    try {
+      final res = await ApiService.put('/hosts/availability/timings', {
+        'slot1': slot1,
+        'slot2': slot2,
+      });
+      if (res['success'] == true) return res;
+      return _failure('setSlotTimings', res['message']);
+    } catch (e) {
+      return _failure('setSlotTimings', e);
+    }
+  }
+
+  /// GET /api/hosts/rates?hall=&year=&month=
+  static Future<Map<String, dynamic>> getRates({
+    required String hall,
+    required int year,
+    required int month,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.rates(hall: hall, year: year, month: month); // STATIC
+    }
+    try {
+      final q = Uri(queryParameters: {'hall': hall, 'year': 'month'}).query;
+      final res = await ApiService.get('/hosts/rates?$q');
+      if (res['success'] == true && res['days'] != null) return res;
+      return _failure('getRates', res['message']);
+    } catch (e) {
+      return _failure('getRates', e);
+    }
+  }
+
+  /// PUT /api/hosts/rates   from/to: 'YYYY-MM-DD' inclusive
+  static Future<Map<String, dynamic>> updateRates({
+    required String hall,
+    required String from,
+    required String to,
+    required int slot1,
+    required int slot2,
+    int? stayRate,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.updateRates( // STATIC
+        hall: hall,
+        from: from,
+        to: to,
+        slot1: slot1,
+        slot2: slot2,
+        stayRate: stayRate,
+      );
+    }
+    try {
+      final res = await ApiService.put('/hosts/rates', {
+        'hall': hall,
+        'from': from,
+        'to': to,
+        'slot1': slot1,
+        'slot2': slot2,
+        if (stayRate != null) 'stayRate': stayRate,
+      });
+      if (res['success'] == true) return res;
+      return _failure('updateRates', res['message']);
+    } catch (e) {
+      return _failure('updateRates', e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 12. Messages and booking requests
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/hosts/messages?filter=all|requests
+  static Future<Map<String, dynamic>> getConversations(String filter) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.conversations(filter); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/messages?filter=$filter');
+      if (res['success'] == true && res['conversations'] != null) return res;
+      return _failure('getConversations', res['message']);
+    } catch (e) {
+      return _failure('getConversations', e);
+    }
+  }
+
+  /// GET /api/hosts/messages/:id
+  static Future<Map<String, dynamic>> getConversation(String id) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.conversation(id); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/messages/$id');
+      if (res['success'] == true && res['conversation'] != null) return res;
+      return _failure('getConversation', res['message']);
+    } catch (e) {
+      return _failure('getConversation', e);
+    }
+  }
+
+  /// POST /api/hosts/messages/:id
+  static Future<Map<String, dynamic>> sendMessage({
+    required String conversationId,
+    required String text,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.sendMessage(id: conversationId, text: text); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/messages/$conversationId', {'text': text});
+      if (res['success'] == true) return res;
+      return _failure('sendMessage', res['message']);
+    } catch (e) {
+      return _failure('sendMessage', e);
+    }
+  }
+
+  /// POST /api/hosts/messages/:id/respond   action: 'accept' | 'decline'
+  static Future<Map<String, dynamic>> respondToRequest({
+    required String conversationId,
+    required String action,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.respondToRequest(id: conversationId, action: action); // STATIC
+    }
+    try {
+      final res = await ApiService.post('/hosts/messages/$conversationId/respond', {'action': action});
+      if (res['success'] == true) return res;
+      return _failure('respondToRequest', res['message']);
+    } catch (e) {
+      return _failure('respondToRequest', e);
+    }
+  }
+
+  /// POST /api/hosts/messages/:id/counter-offer
+  static Future<Map<String, dynamic>> sendCounterOffer({
+    required String conversationId,
+    required Map<String, dynamic> details,
+    required num price,
+    required num taxes,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.sendCounterOffer( // STATIC
+        id: conversationId,
+        details: details,
+        price: price,
+        taxes: taxes,
+      );
+    }
+    try {
+      final res = await ApiService.post('/hosts/messages/$conversationId/counter-offer', {
+        'details': details,
+        'price': price,
+        'taxes': taxes,
+      });
+      if (res['success'] == true) return res;
+      return _failure('sendCounterOffer', res['message']);
+    } catch (e) {
+      return _failure('sendCounterOffer', e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 13. Host profile and notification preferences
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/hosts/profile
+  static Future<Map<String, dynamic>> getHostProfile() async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.profile(); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/profile');
+      if (res['success'] == true && res['profile'] != null) return res;
+      return _failure('getHostProfile', res['message']);
+    } catch (e) {
+      return _failure('getHostProfile', e);
+    }
+  }
+
+  /// PUT /api/hosts/profile
+  static Future<Map<String, dynamic>> updateHostProfile({
+    required String name,
+    required String email,
+  }) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.updateProfile(name: name, email: email); // STATIC
+    }
+    try {
+      final res = await ApiService.put('/hosts/profile', {'name': name, 'email': email});
+      if (res['success'] == true) return res;
+      return _failure('updateHostProfile', res['message']);
+    } catch (e) {
+      return _failure('updateHostProfile', e);
+    }
+  }
+
+  /// GET /api/hosts/notification-preferences
+  static Future<Map<String, dynamic>> getNotificationPreferences() async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.notificationPrefs(); // STATIC
+    }
+    try {
+      final res = await ApiService.get('/hosts/notification-preferences');
+      if (res['success'] == true && res['preferences'] != null) return res;
+      return _failure('getNotificationPreferences', res['message']);
+    } catch (e) {
+      return _failure('getNotificationPreferences', e);
+    }
+  }
+
+  /// PUT /api/hosts/notification-preferences
+  static Future<Map<String, dynamic>> setNotificationPreferences(Map<String, bool> prefs) async {
+    if (useStaticData) {
+      await _staticDelay();
+      return HostStaticData.setNotificationPrefs(prefs); // STATIC
+    }
+    try {
+      final res = await ApiService.put('/hosts/notification-preferences', {'preferences': prefs});
+      if (res['success'] == true) return res;
+      return _failure('setNotificationPreferences', res['message']);
+    } catch (e) {
+      return _failure('setNotificationPreferences', e);
+    }
   }
 }
+
+
+********************************************************************************
+================================================================================

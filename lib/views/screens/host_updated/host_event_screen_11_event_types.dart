@@ -5,6 +5,7 @@ import 'widgets/host_components.dart';
 import 'host_event_screen_12_venue_details.dart';
 import 'host_screen_15_accommodation_rooms.dart';
 
+/// Figma: frame 1228744514 (node 1:1970)
 class HostEventScreen11EventTypes extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic>? initialEventData;
@@ -218,14 +219,31 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
       (key, value) => MapEntry(key, value.toList()),
     );
 
+    final hallCount = int.tryParse(_hallCountController.text.trim()) ?? 0;
+    final anyEventSelected = _selectedEvents.values.any((v) => v.isNotEmpty);
+    final error = hallCount < 1
+        ? 'Enter how many halls / units of this type you have'
+        : (!anyEventSelected ? 'Select at least one event type' : null);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    // Existing data first, so what the host just chose here wins when editing.
     final eventData = {
-      'unitType': 'Banquet Hall',
+      ...(widget.initialEventData ?? {}),
+      'unitType': _selectedVenueType,
       'purpose': _listingPurpose,
       'venueType': _selectedVenueType,
       'bookingMode': _bookingAcceptance,
-      'hallCount': int.tryParse(_hallCountController.text.trim()) ?? 2,
+      'hallCount': hallCount,
       'eventCategories': eventCategoriesMap,
-      ...(widget.initialEventData ?? {}),
+      // Real number of events offered per category (used by the summary screen).
+      'eventCategoryTotals': {
+        for (final e in _eventCategoriesData.entries) e.key: e.value.length,
+      },
     };
 
     final result = await Navigator.push(
@@ -349,7 +367,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
                         ),
                         const SizedBox(height: 12),
                         _buildRadioTile(
-                          title: 'Instant bookings (Bookings, are conformed )',
+                          title: 'Instant bookings (bookings are confirmed)',
                           isSelected: _bookingAcceptance == 'Instant bookings',
                           onTap: () => setState(() => _bookingAcceptance = 'Instant bookings'),
                         ),
@@ -580,3 +598,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

@@ -68,12 +68,12 @@ class HostUpdatedPropertyDraft {
     this.entityType = 'individual',
     this.owners = const [],
     this.businessRep = const {},
-    this.isGstRegistered = false,
+    this.isGstRegistered = true,
     this.gstNumber = '',
     this.panNumber = '',
-    this.guestPaymentMethod = 'online_zaatra',
+    this.guestPaymentMethod = 'direct_cards',
     this.registrationGoal = 'bookings',
-    this.isLegitimateCertified = true,
+    this.isLegitimateCertified = false,
     this.acceptedTerms = true,
   });
 
@@ -237,13 +237,19 @@ class HostUpdatedPropertyDraft {
               .toList() ??
           const [],
       businessRep: Map<String, String>.from(map['businessRep'] ?? const {}),
-      isGstRegistered: map['isGstRegistered'] ?? false,
+      isGstRegistered: map['isGstRegistered'] ?? true,
       gstNumber: map['gstNumber'] ?? '',
       panNumber: map['panNumber'] ?? '',
-      guestPaymentMethod: map['guestPaymentMethod'] ?? 'online_zaatra',
+      guestPaymentMethod: map['guestPaymentMethod'] ?? 'direct_cards',
       registrationGoal: map['registrationGoal'] ?? 'bookings',
-      isLegitimateCertified: map['isLegitimateCertified'] ?? true,
+      isLegitimateCertified: map['isLegitimateCertified'] ?? false,
       acceptedTerms: map['acceptedTerms'] ?? true,
     );
   }
 }
+
+
+
+
+********************************************************************************
+================================================================================

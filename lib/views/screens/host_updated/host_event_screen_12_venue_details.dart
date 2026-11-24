@@ -4,6 +4,8 @@ import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
 import 'host_event_screen_13_capacity_stage_dining.dart';
 
+/// Figma: frame 1228744517 (node 1:2718)
+/// Figma: frame 1228744518 (node 1:2785)
 class HostEventScreen12VenueDetails extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic> eventData;
@@ -184,7 +186,8 @@ class _HostEventScreen12VenueDetailsState extends State<HostEventScreen12VenueDe
                                     ),
                                   ),
                                   onPressed: () {
-                                    
+                                    // Nothing to save here yet: the selections are kept in
+                                    // the event data and saved with the unit on the last step.
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text('Selected event categories confirmed!'),
@@ -467,7 +470,8 @@ class _HostEventScreen12VenueDetailsState extends State<HostEventScreen12VenueDe
       children: displayRows.map((row) {
         final key = row['key'] as String;
         final name = row['name'] as String;
-        final total = row['total'] as int;
+        final totals = _eventData['eventCategoryTotals'] as Map? ?? {};
+        final total = (totals[key] as int?) ?? (row['total'] as int);
 
         final selectedList = categoriesMap[key] as List? ?? [];
         final count = selectedList.length;
@@ -599,3 +603,6 @@ class _HostEventScreen12VenueDetailsState extends State<HostEventScreen12VenueDe
     );
   }
 }
+
+********************************************************************************
+================================================================================

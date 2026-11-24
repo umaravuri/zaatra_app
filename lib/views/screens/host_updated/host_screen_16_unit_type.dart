@@ -4,7 +4,10 @@ import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_17_unit_details.dart';
+import 'host_event_screen_11_event_types.dart';
+import 'host_screen_19_post_unit_hub.dart';
 
+/// Figma: frame 1228744512 (node 1:1694)
 class HostScreen16UnitType extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -65,8 +68,9 @@ class _HostScreen16UnitTypeState extends State<HostScreen16UnitType> {
       'unitType': _selectedUnitType,
     };
 
+    final isEventPurpose = _purpose.toLowerCase().contains('event');
     final updatedDraft = _draft.copyWith(
-      units: updatedUnits.isNotEmpty ? updatedUnits : [unitData],
+      units: updatedUnits.isNotEmpty || isEventPurpose ? updatedUnits : [unitData],
     );
 
     // Save Step 13 asynchronously
@@ -79,13 +83,17 @@ class _HostScreen16UnitTypeState extends State<HostScreen16UnitType> {
       },
     );
 
+    // "Event books" goes to the event venue flow; stays go to the stay unit form.
+    final isEvent = _purpose.toLowerCase().contains('event');
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => HostScreen17UnitDetails(
-          draft: updatedDraft,
-          currentUnit: unitData,
-        ),
+        builder: (_) => isEvent
+            ? HostEventScreen11EventTypes(draft: _draft)
+            : HostScreen17UnitDetails(
+                draft: updatedDraft,
+                currentUnit: unitData,
+              ),
       ),
     );
 
@@ -93,6 +101,13 @@ class _HostScreen16UnitTypeState extends State<HostScreen16UnitType> {
       setState(() {
         _draft = result;
       });
+      // A saved event unit continues to the unit hub, like a saved stay unit does.
+      if (isEvent) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => HostScreen19PostUnitHub(draft: result)),
+        );
+      }
     }
   }
 
@@ -265,3 +280,6 @@ class _HostScreen16UnitTypeState extends State<HostScreen16UnitType> {
     );
   }
 }
+
+********************************************************************************
+================================================================================

@@ -4,6 +4,7 @@ import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
 import 'host_event_screen_14_bridal_rooms.dart';
 
+/// Figma: frame 1228744519 (node 1:2896)
 class HostEventScreen13CapacityStageDining extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
   final Map<String, dynamic> eventData;
@@ -503,3 +504,6 @@ class _HostEventScreen13CapacityStageDiningState
     );
   }
 }
+
+********************************************************************************
+================================================================================

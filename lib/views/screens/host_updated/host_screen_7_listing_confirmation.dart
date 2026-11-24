@@ -4,6 +4,7 @@ import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_8_location_map.dart';
 
+/// Figma: frame 1228744502 (node 1:1011)
 class HostScreen7ListingConfirmation extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -106,3 +107,7 @@ class _HostScreen7ListingConfirmationState extends State<HostScreen7ListingConfi
     );
   }
 }
+
+
+********************************************************************************
+================================================================================

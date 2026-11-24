@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
+import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_21_verification.dart';
 
+/// Figma: frame 1228744492 (node 1:538)
 class HostScreen20Invoicing extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
 
@@ -40,6 +42,14 @@ class _HostScreen20InvoicingState extends State<HostScreen20Invoicing> {
   }
 
   void _onContinue() async {
+    final error = HostValidators.required(_invoiceNameController.text, 'Legal name');
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final updated = _draft.copyWith(
       invoiceName: _invoiceNameController.text.trim(),
       invoiceAddressSame: _sameAddressAsProperty,
@@ -196,3 +206,7 @@ class _HostScreen20InvoicingState extends State<HostScreen20Invoicing> {
     );
   }
 }
+
+
+********************************************************************************
+================================================================================
