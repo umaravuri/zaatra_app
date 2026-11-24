@@ -76,13 +76,16 @@ class AppEnv {
     return 'rzp_test_SruZTYXpRSuPCc';
   }
 
-  /// Default Driver Password for automated registration fallback
-  static String get defaultDriverPassword {
+  /// Default Account Password for automated registration fallback
+  static String get defaultAccountPassword {
     try {
       if (dotenv.isInitialized) {
-        return dotenv.env['DEFAULT_DRIVER_PASSWORD']?.trim() ?? 'ZaatraOTP@123';
+        return dotenv.env['DEFAULT_ACCOUNT_PASSWORD']?.trim() ?? 'ZaatraOTP@123';
       }
     } catch (_) {}
     return 'ZaatraOTP@123';
   }
+
+  /// Default Driver Password for automated registration fallback
+  static String get defaultDriverPassword => defaultAccountPassword;
 }

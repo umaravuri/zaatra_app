@@ -24,7 +24,7 @@ const List<String> _kMonthsShort = [
 const List<String> _kWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 String _iso(DateTime d) =>
-    '{d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    "${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
 String _short(DateTime d) => '${_kMonthsShort[d.month - 1]} ${d.day}';
 
@@ -45,7 +45,7 @@ String _inr(int v) {
     if (i > 0 && (head.length - i) % 2 == 0) buf.write(',');
     buf.write(head[i]);
   }
-  return '{s.substring(s.length - 3)}';
+  return '$buf,${s.substring(s.length - 3)}';
 }
 
 /// Figma: frame 1228744541 (node 1:5053)
@@ -439,6 +439,3 @@ class _RatesResultPage extends StatelessWidget {
   }
 }
 
-
-********************************************************************************
-================================================================================

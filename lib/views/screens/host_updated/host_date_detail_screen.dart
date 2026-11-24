@@ -36,7 +36,7 @@ String _ordinal(int d) {
 }
 
 String _dateKey(DateTime d) =>
-    '{d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    "${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
 /// Indian digit grouping, e.g. 145000 -> 1,45,000.
 String _inr(num v) {
@@ -50,7 +50,7 @@ String _inr(num v) {
     head = head.substring(0, head.length - 2);
   }
   if (head.isNotEmpty) parts.insert(0, head);
-  return 'tail';
+  return '${parts.join(',')},$tail';
 }
 
 /// Figma: frame 1228744547 (node 1:5517)
@@ -331,6 +331,3 @@ class _HostDateDetailScreenState extends State<HostDateDetailScreen> {
       );
 }
 
-
-********************************************************************************
-================================================================================

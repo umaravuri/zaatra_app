@@ -564,5 +564,3 @@ class _ConfettiPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-********************************************************************************
-================================================================================

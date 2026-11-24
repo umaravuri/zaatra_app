@@ -513,6 +513,3 @@ class _StylizedMapPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-********************************************************************************
-================================================================================

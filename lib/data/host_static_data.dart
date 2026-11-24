@@ -216,7 +216,7 @@ class HostStaticData {
     return {
       'success': true,
       'count': count,
-      'photos': List.generate(count, (i) => '/uploads/properties/photos-{i + 1}.jpg'),
+      'photos': List.generate(count, (i) => '/uploads/properties/photos-${i + 1}.jpg'),
     };
   }
 
@@ -485,7 +485,7 @@ class HostStaticData {
   };
 
   static String _key(int y, int m, int d) =>
-      '{m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+      "${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}";
 
   static Map<String, dynamic> _notFoundHall() => {'success': false, 'message': 'Hall not found'};
 
@@ -593,7 +593,9 @@ class HostStaticData {
       final day = store[date];
       if (day == null) continue;
       for (final slot in slots) {
-        if (day['slotslot');
+        if (day.containsKey('slot$slot')) {
+          day['slot$slot'] = {'state': 'available'};
+        }
       }
     }
     return {'success': true};
@@ -817,7 +819,7 @@ class HostStaticData {
   static String _now() {
     final n = DateTime.now();
     final h = n.hour % 12 == 0 ? 12 : n.hour % 12;
-    return '{n.minute.toString().padLeft(2, '0')} ${n.hour >= 12 ? 'PM' : 'AM'}';
+    return "${n.minute.toString().padLeft(2, '0')} ${n.hour >= 12 ? 'PM' : 'AM'}";
   }
 
   /// POST /hosts/messages/:id
@@ -934,6 +936,3 @@ class HostStaticData {
   }
 }
 
-
-********************************************************************************
-================================================================================

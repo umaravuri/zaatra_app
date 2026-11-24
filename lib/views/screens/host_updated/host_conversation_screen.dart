@@ -25,7 +25,7 @@ String _inr(num value) {
       rest = rest.substring(0, rest.length - 2);
     }
     if (rest.isNotEmpty) parts.insert(0, rest);
-    out = '{s.substring(s.length - 3)}';
+    out = '${parts.join(',')},${s.substring(s.length - 3)}';
   }
   return value < 0 ? '-$out' : out;
 }
@@ -127,7 +127,7 @@ class _HostConversationScreenState extends State<HostConversationScreen> {
 
   String _mmss(int secs) {
     final s = secs < 0 ? 0 : secs;
-    return '{(s % 60).toString().padLeft(2, '0')}';
+    return '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
   }
 
   // ---------------------------------------------------------------- actions
@@ -681,7 +681,3 @@ class _CounterOfferSheetState extends State<_CounterOfferSheet> {
   }
 }
 
-
-
-********************************************************************************
-================================================================================

@@ -477,7 +477,7 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Unit {isEvent ? 'Events Booking' : 'Accommodations'})',
+                              'Unit (${isEvent ? "Events Booking" : "Accommodations"})',
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -636,6 +636,8 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
             ),
           ],
         ),
+          ],
+        ),
       ),
     );
   }
@@ -717,6 +719,3 @@ class _HostScreen19PostUnitHubState extends State<HostScreen19PostUnitHub> {
   }
 }
 
-
-********************************************************************************
-================================================================================

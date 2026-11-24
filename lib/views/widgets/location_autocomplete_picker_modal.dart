@@ -259,7 +259,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                       widget.title,
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.normal,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -285,7 +285,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                   controller: _searchController,
                   autofocus: true,
                   onChanged: _onQueryChanged,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: widget.hintText,
                     hintStyle: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.normal),
@@ -338,7 +338,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                               'Use My Current Location',
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.normal,
                                 color: AppColors.primary,
                               ),
                             ),
@@ -401,7 +401,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
               const SizedBox(height: 12),
               const Text(
                 'No live suggestions found',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 4),
               const Text(
@@ -420,7 +420,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                   icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white, size: 18),
                   label: Text(
                     'Use "$queryText"',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.normal),
                   ),
                   onPressed: () {
                     Navigator.pop(
@@ -459,7 +459,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
           ),
           title: Text(
             item.mainText,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
           ),
           subtitle: item.secondaryText.isNotEmpty
               ? Text(
@@ -496,7 +496,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
         children: [
           const Text(
             'Popular Pickup & Drop Areas',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -508,7 +508,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                 side: BorderSide(color: AppColors.primary.withAlpha(40)),
                 label: Text(
                   name,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.primary),
                 ),
                 avatar: const Icon(Icons.location_city_rounded, size: 16, color: AppColors.primary),
                 onPressed: () {
@@ -526,7 +526,7 @@ class _LocationAutocompletePickerModalState extends State<LocationAutocompletePi
                 const SizedBox(height: 8),
                 const Text(
                   'Search Live via Google Maps',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
                 const Text(

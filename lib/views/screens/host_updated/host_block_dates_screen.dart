@@ -18,7 +18,7 @@ const List<String> _kWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
 const List<String> _kReasons = ['Maintenance', 'Personal', 'Festive', 'Other'];
 
 String _iso(DateTime d) =>
-    '{d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    "${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
 /// 'April 17 & 23', 'April 17, 23 & 25'. Spans months when needed.
 String _summary(List<DateTime> dates) {
@@ -28,7 +28,7 @@ String _summary(List<DateTime> dates) {
   for (var i = 0; i < sorted.length; i++) {
     final d = sorted[i];
     final newMonth = i == 0 || sorted[i - 1].month != d.month;
-    parts.add(newMonth ? '${_kMonths[d.month - 1]} {d.day}');
+    parts.add(newMonth ? '${_kMonths[d.month - 1]} ${d.day}' : '${d.day}');
   }
   if (parts.length == 1) return parts.first;
   return '${parts.sublist(0, parts.length - 1).join(', ')} & ${parts.last}';
@@ -394,6 +394,3 @@ class _BlockedResultPage extends StatelessWidget {
   }
 }
 
-
-********************************************************************************
-================================================================================

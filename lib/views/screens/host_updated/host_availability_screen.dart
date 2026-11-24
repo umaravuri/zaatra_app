@@ -22,7 +22,7 @@ const _months = [
 const _dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 String _dateKey(int y, int m, int d) =>
-    '{m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+    "${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}";
 
 /// Figma: frame 1228744550 (node 1:5741)
 class HostAvailabilityRatesScreen extends StatefulWidget {
@@ -394,6 +394,3 @@ class _HostAvailabilityRatesScreenState extends State<HostAvailabilityRatesScree
   }
 }
 
-
-********************************************************************************
-================================================================================
