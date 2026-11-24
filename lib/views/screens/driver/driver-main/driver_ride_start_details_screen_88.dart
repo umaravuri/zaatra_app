@@ -805,7 +805,9 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
   void _navigateToOnTripSeatsScreen() {
     final depTime = _stops.isNotEmpty ? _stops.first['time']?.toString() ?? '--' : '--';
     final arrTime = _stops.isNotEmpty ? _stops.last['time']?.toString() ?? '--' : '--';
-    final dur = _candidateRoutes.isNotEmpty ? _candidateRoutes.first.duration : '02h 45 Mins';
+    final dur = _candidateRoutes.isNotEmpty
+        ? _candidateRoutes.first.durationText
+        : '02h 45 Mins';
 
     Navigator.push(
       context,

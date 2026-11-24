@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../services/auth_service.dart';
 import '../../authorization/login_screen_115.dart';
-import 'customer_bookings_history_screen_43.dart';
+import '../customer-stay-updated/customer_my_bookings_screen_updated.dart';
 import 'edit_profile_screen_45.dart';
 import 'help_support_screen_48.dart';
 import 'saved_favorites_screen_47.dart';
@@ -279,7 +279,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const CustomerBookingsHistoryScreen()),
+                        MaterialPageRoute(builder: (context) => const CustomerMyBookingsScreenUpdated()),
                       );
                     },
                   ),

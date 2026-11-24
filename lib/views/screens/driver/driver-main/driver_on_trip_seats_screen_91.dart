@@ -15,7 +15,7 @@ class DriverOnTripSeatsScreen extends StatefulWidget {
   final int totalSeats;
   final int bookedSeats;
   final List<dynamic>? passengerList;
-  final List<dynamic>? routeTimeline;
+  final List<Map<String, dynamic>>? routeTimeline;
 
   const DriverOnTripSeatsScreen({
     super.key,

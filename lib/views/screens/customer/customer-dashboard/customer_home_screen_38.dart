@@ -13,7 +13,7 @@ import '../customer-ride/ride_search_map_screen_44.dart';
 import '../customer-stay/stay_search_results_screen_45.dart';
 import '../customer-stay/stay_ride_search_screen_41.dart';
 import '../customer-common/saved_favorites_screen_47.dart';
-import '../customer-common/customer_bookings_history_screen_43.dart';
+import '../customer-stay-updated/customer_my_bookings_screen_updated.dart';
 import '../customer-common/customer_profile_screen_44.dart';
 import '../customer-common/customer_messages_screen.dart';
 import '../customer-common/notifications_screen_52.dart';
@@ -1463,7 +1463,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           } else if (index == 1) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedFavoritesScreen()));
           } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerBookingsHistoryScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerMyBookingsScreenUpdated()));
           } else if (index == 3) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerMessagesScreen()));
           } else if (index == 4) {
