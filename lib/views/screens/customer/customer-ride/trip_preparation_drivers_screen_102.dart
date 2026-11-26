@@ -425,7 +425,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Top Row: Avatar + Info + View Details Button
+                                    // Top Row: Avatar + Info + Action Icons
                                     Row(
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
@@ -446,36 +446,14 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                 );
                                               },
                                             ),
-                                            if (driver.rating > 0)
+                                            if (driver.isVerifiedByAdmin)
                                               Positioned(
-                                                bottom: -4,
-                                                left: 4,
-                                                right: 4,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    border: Border.all(color: const Color(0xFFFFB800), width: 1),
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: Colors.black.withValues(alpha: 0.08),
-                                                        blurRadius: 3,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 12),
-                                                      const SizedBox(width: 2),
-                                                      Text(
-                                                        '${driver.rating}',
-                                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                                      ),
-                                                    ],
-                                                  ),
+                                                bottom: 0,
+                                                right: 0,
+                                                child: Image.asset(
+                                                  'assets/images/Vector.png',
+                                                  width: 18,
+                                                  height: 18,
                                                 ),
                                               ),
                                           ],
@@ -485,76 +463,11 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Row(
-                                                children: [
-                                                  Flexible(
-                                                    child: Text(
-                                                      driver.name.isNotEmpty ? driver.name : 'Driver',
-                                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(0xFFFFF7EC),
-                                                      borderRadius: BorderRadius.circular(6),
-                                                      border: Border.all(color: const Color(0xFFFFB800), width: 0.8),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFB800)),
-                                                        const SizedBox(width: 2),
-                                                        Text(
-                                                          driver.ratingBadge.isNotEmpty
-                                                              ? driver.ratingBadge.replaceAll('★ ', '')
-                                                              : (driver.rating > 0
-                                                                  ? '${driver.ratingCount > 0 ? ' (${driver.ratingCount})' : ''}'
-                                                                  : 'New'),
-                                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB78103)),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (driver.isVerifiedByAdmin) ...[
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      width: 8,
-                                                      height: 8,
-                                                      decoration: const BoxDecoration(
-                                                        color: Color(0xFF2E7D32),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFFE8F5E9),
-                                                        borderRadius: BorderRadius.circular(6),
-                                                        border: Border.all(color: const Color(0xFF81C784), width: 0.8),
-                                                      ),
-                                                      child: const Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          Icon(Icons.verified_rounded, size: 11, color: Color(0xFF2E7D32)),
-                                                          SizedBox(width: 3),
-                                                          Text(
-                                                            'Verified by Zaatra',
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              fontWeight: FontWeight.bold,
-                                                              color: Color(0xFF1B5E20),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
+                                              Text(
+                                                driver.name.isNotEmpty ? driver.name : 'Driver',
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                               if (vehicleSummaryText.isNotEmpty) ...[
                                                 const SizedBox(height: 3),
@@ -563,6 +476,27 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                              if (driver.rating > 0) ...[
+                                                const SizedBox(height: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFFFF4EC),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(Icons.star_rounded, color: Color(0xFFFF7A00), size: 14),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        '${driver.rating}',
+                                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ],
                                             ],
@@ -845,21 +779,21 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
 
                                     const SizedBox(height: 16),
 
-                                    // Price Action Button
+                                    // View Details Action Button
                                     SizedBox(
                                       width: double.infinity,
                                       height: 48,
                                       child: ElevatedButton(
                                         onPressed: navigateToDetails,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFF3EDF7),
-                                          foregroundColor: AppColors.primary,
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
                                           elevation: 0,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                         ),
-                                        child: Text(
-                                          priceLabel,
-                                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                        child: const Text(
+                                          'View Details',
+                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                                         ),
                                       ),
                                     ),

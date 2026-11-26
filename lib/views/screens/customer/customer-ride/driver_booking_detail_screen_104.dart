@@ -370,14 +370,29 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                             children: [
                               Row(
                                 children: [
-                                  CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: const Color(0xFFF3EDF7),
-                                    backgroundImage: avatarProvider,
-                                    onBackgroundImageError: avatarProvider != null ? (_, __) {} : null,
-                                    child: avatarProvider == null
-                                        ? const Icon(Icons.person, color: AppColors.primary, size: 28)
-                                        : null,
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 28,
+                                        backgroundColor: const Color(0xFFF3EDF7),
+                                        backgroundImage: avatarProvider,
+                                        onBackgroundImageError: avatarProvider != null ? (_, __) {} : null,
+                                        child: avatarProvider == null
+                                            ? const Icon(Icons.person, color: AppColors.primary, size: 28)
+                                            : null,
+                                      ),
+                                      if (driver.isVerifiedByAdmin)
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Image.asset(
+                                            'assets/images/Vector.png',
+                                            width: 18,
+                                            height: 18,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
@@ -696,13 +711,28 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: const Color(0xFFF3EDF7),
-                      backgroundImage: _getAvatarProvider(driver.avatarImage),
-                      child: driver.avatarImage.isEmpty
-                          ? const Icon(Icons.person, color: AppColors.primary, size: 26)
-                          : null,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: const Color(0xFFF3EDF7),
+                          backgroundImage: _getAvatarProvider(driver.avatarImage),
+                          child: driver.avatarImage.isEmpty
+                              ? const Icon(Icons.person, color: AppColors.primary, size: 26)
+                              : null,
+                        ),
+                        if (driver.isVerifiedByAdmin)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Image.asset(
+                              'assets/images/Vector.png',
+                              width: 16,
+                              height: 16,
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 14),
                     Expanded(

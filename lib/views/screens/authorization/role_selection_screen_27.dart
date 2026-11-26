@@ -3,10 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/navigation/app_navigator.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/driver_service.dart';
+import '../../../services/host_service.dart';
 import '../customer/customer-stay/customer_home_screen_38.dart';
 import '../driver/driver-main/driver_home_dashboard_screen_83.dart';
 import '../driver/driver-onboarding/driver_personal_info_screen_31.dart';
 import '../host_updated/host_dashboard_screen.dart';
+import '../host_updated/host_screen_5_property_type.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   static const String routeName = AppRoutes.roleSelection;
@@ -140,22 +142,96 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
-    // 2. SCENARIO B: Host Selection -> straight to the host side (dashboard)
+    // 2. SCENARIO B: Host Selection
     if (role.toLowerCase() == 'host') {
+      bool isHostExisting = false;
+
+      if (backendCanLogin != null) {
+        isHostExisting = backendCanLogin;
+      } else {
+        // Fallback check if backend unreachable
+        isHostExisting = await HostService.isOldHost(phone);
+      }
+
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _loadingRole = null;
       });
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          settings: const RouteSettings(name: AppRoutes.hostHome),
-          builder: (context) => const HostDashboardScreen(),
-        ),
-        (route) => false,
-      );
+      if (isHostExisting) {
+        // Case B1: Existing Host -> Host Dashboard Screen
+        final prefs = await SharedPreferences.getInstance();
+        final rawUser = selectResult['user'] is Map ? (selectResult['user'] as Map<String, dynamic>) : null;
+        String? backendName;
+        if (rawUser != null) {
+          backendName = (rawUser['name'] ?? rawUser['fullName'])?.toString();
+        }
+
+        final resolvedName = backendName ??
+            prefs.getString('user_name_$cleanPhone') ??
+            prefs.getString('user_name_$tenDigit') ??
+            (widget.userName.isNotEmpty && widget.userName.toLowerCase() != 'user' ? widget.userName : null);
+
+        if (resolvedName != null && resolvedName.isNotEmpty) {
+          await prefs.setString('hostName', resolvedName);
+          await prefs.setString('currentUserName', resolvedName);
+        }
+
+        // Establish 30-day persistent session if token returned
+        final token = selectResult['token']?.toString() ?? selectResult['data']?['token']?.toString();
+        final userId = rawUser?['id']?.toString() ?? rawUser?['_id']?.toString() ?? rawUser?['userId']?.toString();
+        if (token != null && token.isNotEmpty) {
+          await AuthService.createSession(
+            token: token,
+            role: 'host',
+            phone: phone,
+            userId: userId,
+            hostId: userId,
+            userProfile: rawUser,
+          );
+        }
+
+        // Make sure the server session is in the host role; best effort.
+        try {
+          await AuthService.switchRole('host');
+        } catch (_) {}
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: AppRoutes.hostHome),
+            builder: (context) => HostDashboardScreen(
+              userName: resolvedName,
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        // Case B2: Not registered as Host -> Display Pop-up Alert Dialog
+        final popup = selectResult['popup'] is Map ? selectResult['popup'] : null;
+        final title = popup?['title']?.toString() ?? 'Host Account Not Found';
+        final message = selectResult['message']?.toString() ??
+            popup?['message']?.toString() ??
+            "You do not have a host account in Zaatra, so please register your property.";
+        final buttonText = popup?['buttonText']?.toString() ?? 'Register Property';
+
+        _showAccountNotFoundDialog(
+          title: title,
+          message: message,
+          buttonText: buttonText,
+          onRegister: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HostScreen5PropertyType(),
+              ),
+            );
+          },
+        );
+      }
       return;
     }
 

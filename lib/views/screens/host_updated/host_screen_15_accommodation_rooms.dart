@@ -7,6 +7,7 @@ import '../../../models/host_updated_property_draft_model.dart';
 import '../../../services/host_api_service.dart';
 import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
+import 'host_event_screen_11_event_types.dart';
 
 /// Figma: frame 1228744515 (node 1:2312)
 class HostScreen15AccommodationRooms extends StatefulWidget {
@@ -236,7 +237,7 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
             Column(
               children: [
                 HostTopBar(
-                  title: '',
+                  title: 'Add Unit 2',
                   onBack: () => Navigator.pop(context, _draft),
                 ),
                 Expanded(
@@ -246,6 +247,39 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Are you listing this unit for
+                        Text(
+                          'Are you listing this unit for',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1E1E24),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Accommodations radio
+                        _buildPurposeRadioTile(
+                          title: 'Accommodations',
+                          isSelected: true,
+                          onTap: () {},
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Events Booking radio
+                        _buildPurposeRadioTile(
+                          title: 'Events Booking',
+                          isSelected: false,
+                          onTap: () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => HostEventScreen11EventTypes(draft: _draft),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 24),
+
                         // 1. Accommodation Rooms Radio
                         _buildSectionHeader('Accommodation Rooms'),
                         const SizedBox(height: 10),
@@ -958,5 +992,43 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
       ),
     );
   }
+  Widget _buildPurposeRadioTile({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF5E42C2) : const Color(0xFFA0A0B2),
+                  width: isSelected ? 7.0 : 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF1E1E24),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
-

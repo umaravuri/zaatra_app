@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
+import '../../../../services/customer_location_tracking_service.dart';
 import '../../../widgets/custom_button.dart';
 import '../customer-stay/customer_home_screen_38.dart';
 import 'live_ride_tracking_screen_106.dart';
@@ -31,6 +32,17 @@ class _RideBookingSuccessScreenState extends State<RideBookingSuccessScreen> {
   void initState() {
     super.initState();
     _modal = widget.confirmationModal;
+    final session = widget.session;
+    final id = widget.bookingId ?? session?.bookingId ?? '';
+    if (session != null && id.isNotEmpty) {
+      CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+        bookingId: id,
+        dateStr: session.date,
+        timeStr: session.time,
+        driverName: session.driver.name,
+        pickupAddress: session.pickup,
+      );
+    }
     if (_modal == null) {
       _fetchConfirmationModal();
     }
@@ -47,6 +59,18 @@ class _RideBookingSuccessScreenState extends State<RideBookingSuccessScreen> {
         _isLoading = false;
         if (res['success'] == true) {
           _modal = RideConfirmationModal.fromJson(res);
+          final data = res['data'] is Map ? res['data'] as Map : res;
+          final active = _activeSession;
+          final dateStr = (data['date'] ?? data['departureDate'] ?? active.date).toString();
+          final timeStr = (data['time'] ?? data['departureTime'] ?? active.time).toString();
+          final pickupAddr = (data['pickupLocation'] ?? data['pickup'] ?? active.pickup).toString();
+          CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+            bookingId: effectiveId,
+            dateStr: dateStr,
+            timeStr: timeStr,
+            driverName: _modal!.driverName.isNotEmpty ? _modal!.driverName : active.driver.name,
+            pickupAddress: pickupAddr,
+          );
         }
       });
     }

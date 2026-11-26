@@ -21,6 +21,7 @@ class AuthService {
   static const String keyTokenExpiresAt = 'tokenExpiresAt';
   static const String keyCurrentPhone = 'currentPhone';
   static const String keyDriverId = 'driverId';
+  static const String keyHostId = 'hostId';
   static const String keyUserId = 'userId';
 
   /// 30 Days in milliseconds (30 * 24 * 60 * 60 * 1000 = 2,592,000,000 ms)
@@ -409,6 +410,7 @@ class AuthService {
     required String phone,
     String? userId,
     String? driverId,
+    String? hostId,
     Map<String, dynamic>? userProfile,
     bool preserveExistingLoginTime = true,
   }) async {
@@ -425,6 +427,9 @@ class AuthService {
     }
     if (driverId != null && driverId.isNotEmpty) {
       await prefs.setString(keyDriverId, driverId);
+    }
+    if (hostId != null && hostId.isNotEmpty) {
+      await prefs.setString(keyHostId, hostId);
     }
     if (userProfile != null) {
       await prefs.setString('userProfile', jsonEncode(userProfile));
@@ -828,6 +833,7 @@ class AuthService {
       await prefs.remove('currentUserCity');
       await prefs.remove('currentUserLocation');
       await prefs.remove(keyDriverId);
+      await prefs.remove(keyHostId);
       await prefs.remove(keyUserId);
       await prefs.remove('current_user_avatar');
     } catch (_) {}

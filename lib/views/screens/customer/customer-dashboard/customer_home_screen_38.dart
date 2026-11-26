@@ -12,13 +12,16 @@ import '../customer-stay/property_detail_screen_62.dart';
 import '../customer-ride/ride_search_map_screen_44.dart';
 import '../customer-stay/stay_search_results_screen_45.dart';
 import '../customer-stay/stay_ride_search_screen_41.dart';
-import '../customer-common/saved_favorites_screen_47.dart';
+import '../customer-common/my_wishlist_screen.dart';
 import '../customer-stay-updated/customer_my_bookings_screen_updated.dart';
 import '../customer-common/customer_profile_screen_44.dart';
 import '../customer-common/customer_messages_screen.dart';
 import '../customer-common/notifications_screen_52.dart';
 import '../customer-stay/heritage_places_screen.dart';
 import '../customer-stay/heritage_detail_screen.dart';
+import '../customer-stay/city_detail_screen.dart';
+import '../customer-event/event_search_screen.dart';
+import '../../../widgets/customer_location_sharing_banner.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   static const String routeName = AppRoutes.customerHome;
@@ -138,6 +141,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         body: SafeArea(
           child: Column(
             children: [
+              const CustomerLocationSharingBanner(),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
@@ -176,7 +180,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             // Section 2: Recent Cities
                             _buildSectionHeader(
                               'Recent Cities',
-                              onViewAll: () => _navigateToStayResults('Recent Cities'),
+                              onViewAll: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CityDetailScreen(city: 'Hyderabad'),
+                                  ),
+                                );
+                              },
                             ),
                             const SizedBox(height: 12),
                             _buildRecentCitiesCarousel(),
@@ -426,9 +437,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const StaySearchResultsScreen(
-                          locationName: 'Event Halls',
-                        ),
+                        builder: (context) => const EventSearchScreen(),
                       ),
                     );
                   },
@@ -1461,7 +1470,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           if (index == 0) {
             setState(() => _currentNavIndex = 0);
           } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedFavoritesScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const MyWishlistScreen()));
           } else if (index == 2) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerMyBookingsScreenUpdated()));
           } else if (index == 3) {

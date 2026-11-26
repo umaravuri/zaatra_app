@@ -5,7 +5,7 @@ import '../../authorization/login_screen_115.dart';
 import '../customer-stay-updated/customer_my_bookings_screen_updated.dart';
 import 'edit_profile_screen_45.dart';
 import 'help_support_screen_48.dart';
-import 'saved_favorites_screen_47.dart';
+import 'my_wishlist_screen.dart';
 import 'saved_payment_methods_screen_46.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
@@ -299,7 +299,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const SavedFavoritesScreen()),
+                        MaterialPageRoute(builder: (context) => const MyWishlistScreen()),
                       );
                     },
                   ),

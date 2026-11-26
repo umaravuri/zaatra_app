@@ -273,7 +273,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
             Column(
               children: [
                 HostTopBar(
-                  title: 'Add Unite 2',
+                  title: 'Add Unit 2',
                   onBack: () => Navigator.pop(context),
                 ),
                 Expanded(
@@ -297,7 +297,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
                           title: 'Accommodations',
                           isSelected: _listingPurpose == 'Accommodations',
                           onTap: () {
-                            Navigator.of(context).push(
+                            Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
                                 builder: (_) => HostScreen15AccommodationRooms(draft: _draft),
                               ),

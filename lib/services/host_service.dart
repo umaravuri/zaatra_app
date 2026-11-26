@@ -536,6 +536,36 @@ class HostService {
     }
     return await ApiService.get('/properties/$cleanId', token: token);
   }
+
+  // 7. Check if phone number belongs to an existing host
+  static Future<bool> isOldHost(String phoneNumber) async {
+    final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final tenDigit = cleanPhone.length >= 10
+        ? cleanPhone.substring(cleanPhone.length - 10)
+        : cleanPhone;
+
+    // 1. Check SharedPreferences cache
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final title = prefs.getString('host_property_title_$cleanPhone') ??
+          prefs.getString('host_property_title_$tenDigit') ??
+          prefs.getString('registered_property_title');
+      if (title != null && title.trim().isNotEmpty) return true;
+
+      final isHost = prefs.getBool('is_host_$cleanPhone') ??
+          prefs.getBool('is_host_$tenDigit') ??
+          prefs.getBool('is_host');
+      if (isHost == true) return true;
+    } catch (_) {}
+
+    // 2. Query properties via API
+    try {
+      final props = await getHostProperties(hostPhone: phoneNumber);
+      if (props.isNotEmpty) return true;
+    } catch (_) {}
+
+    return false;
+  }
 }
 
 enum HostApprovalStatus {

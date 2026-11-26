@@ -1379,6 +1379,35 @@ class RideService {
     return await startNavigation(rideId: rideId);
   }
 
+  /// Customer Live Location Sharing: POST /api/rides/booking/{bookingId}/customer-location
+  /// Shares customer coordinates with the driver prior to pickup
+  static Future<Map<String, dynamic>> updateCustomerLocation({
+    required String bookingId,
+    required double latitude,
+    required double longitude,
+    String? address,
+  }) async {
+    try {
+      final payload = {
+        'latitude': latitude,
+        'longitude': longitude,
+        'timestamp': DateTime.now().toIso8601String(),
+        if (address != null && address.isNotEmpty) 'address': address,
+      };
+      final endpoint = bookingId.isNotEmpty
+          ? '/rides/booking/$bookingId/customer-location'
+          : '/rides/customer-location';
+      final res = await ApiService.post(endpoint, payload);
+      return res;
+    } catch (e) {
+      debugPrint('Failed to sync customer location: $e');
+      return {
+        'success': false,
+        'message': 'Failed to update customer location: $e',
+      };
+    }
+  }
+
   /// Automated 5-Hour Pre-Trip Alarm Dispatch: POST /api/rides/{rideId}/send-pre-trip-alert
   static Future<Map<String, dynamic>> sendPreTripAlert({required String rideId}) async {
     try {

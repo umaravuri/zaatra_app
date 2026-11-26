@@ -8,6 +8,8 @@ import '../../../widgets/custom_image_placeholder.dart';
 import '../customer-stay/select_room_screen_54.dart';
 import 'customer_rate_ride_sheet.dart';
 import 'ride_chat_screen.dart';
+import '../../../widgets/customer_location_sharing_banner.dart';
+import '../../../../services/customer_location_tracking_service.dart';
 
 class LiveRideTrackingScreen extends StatefulWidget {
   final RideBookingSession? session;
@@ -46,6 +48,15 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
   void initState() {
     super.initState();
     final session = widget.session;
+    if (session != null && session.driver.name.isNotEmpty) {
+      CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+        bookingId: _effectiveBookingId,
+        dateStr: session.date,
+        timeStr: session.time,
+        driverName: session.driver.name,
+        pickupAddress: session.pickup,
+      );
+    }
     final needsBooking = session == null || session.driver.name.isEmpty;
     if (needsBooking && _effectiveBookingId.isNotEmpty) {
       _loadBooking();
@@ -81,6 +92,13 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
             _vehicleLng = mp.pickupLng;
           }
         });
+        CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+          bookingId: _effectiveBookingId,
+          dateStr: pass.ticket.checkInDate,
+          timeStr: pass.ticket.checkInTime,
+          driverName: pass.driverName,
+          pickupAddress: pass.mapPreview.pickupLocation,
+        );
         _fetchLiveNearbyStays();
         return;
       }
@@ -532,9 +550,13 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
         backgroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: Stack(
-          fit: StackFit.expand,
+        child: Column(
           children: [
+            const CustomerLocationSharingBanner(),
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
             // Bottom Background Graphic
             Positioned(
               left: 0,
@@ -939,7 +961,10 @@ class _LiveRideTrackingScreenState extends State<LiveRideTrackingScreen> {
           ],
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 }
 

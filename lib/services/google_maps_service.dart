@@ -164,6 +164,35 @@ class GoogleMapsService {
     return null;
   }
 
+  /// Checks whether hardware location service (GPS) is turned ON and runtime permission is granted.
+  static Future<bool> isLocationAvailable() async {
+    try {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return false;
+      final LocationPermission permission = await Geolocator.checkPermission();
+      return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens the device location settings or app settings if permissions/services are blocked.
+  static Future<bool> openSettingsIfNeeded() async {
+    try {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return await Geolocator.openLocationSettings();
+      }
+      final LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.deniedForever) {
+        return await Geolocator.openAppSettings();
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Checks and triggers the default Android/iOS system runtime location permission dialog.
   /// Returns true if granted (while in use or always).
   static Future<bool> requestSystemLocationPermission() async {
@@ -171,6 +200,14 @@ class GoogleMapsService {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        await Geolocator.openAppSettings();
+        return false;
+      }
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
       }
       return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
     } catch (e) {

@@ -6,6 +6,8 @@ import '../../../../models/customer_booking_model.dart';
 import '../../../../models/hotel_model.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
+import '../../../widgets/customer_location_sharing_banner.dart';
+import '../../../../services/customer_location_tracking_service.dart';
 import 'live_ride_tracking_screen_106.dart';
 import '../customer-stay/select_room_screen_54.dart';
 import 'customer_rate_ride_sheet.dart';
@@ -367,6 +369,16 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
     if (widget.bookingData != null) {
       _parseDynamicPayload(widget.bookingData!);
     }
+
+    if (_isUpcoming || _isActive) {
+      CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+        bookingId: _getEffectiveBookingId(),
+        dateStr: _checkInDate,
+        timeStr: _checkInTime,
+        driverName: _driverName,
+        pickupAddress: _timelineStops.isNotEmpty ? _timelineStops.first['title'] : null,
+      );
+    }
   }
 
   Future<void> _fetchDynamicConfirmation() async {
@@ -465,6 +477,16 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
         'customerPreferences': pass.customerPreferences,
         'rideFeatures': pass.rideFeatures,
       });
+    }
+
+    if (_isUpcoming || _isActive) {
+      CustomerLocationTrackingService.instance.setActiveBookingFromStrings(
+        bookingId: _getEffectiveBookingId(),
+        dateStr: _checkInDate,
+        timeStr: _checkInTime,
+        driverName: _driverName,
+        pickupAddress: _timelineStops.isNotEmpty ? _timelineStops.first['title'] : null,
+      );
     }
   }
 
@@ -895,6 +917,7 @@ class _RideConfirmedDetailScreen112State extends State<RideConfirmedDetailScreen
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const CustomerLocationSharingBanner(),
                 // 1. Top Map View Header
                 _buildTopMapHeader(context),
 

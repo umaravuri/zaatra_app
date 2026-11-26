@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../models/hotel_model.dart';
-// import 'stay_request_change_screen.dart';
-// import 'stay_checkout_screen_42.dart';
+import 'stay_request_change_screen.dart';
 
 class StayHostChatScreen extends StatefulWidget {
   final Hotel? hotel;
@@ -347,8 +346,11 @@ class _StayHostChatScreenState extends State<StayHostChatScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Request changes is temporarily unavailable')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StayRequestChangeScreen(hotel: hotel),
+                      ),
                     );
                   },
                   style: OutlinedButton.styleFrom(
