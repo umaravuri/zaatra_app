@@ -9,6 +9,7 @@ import '../driver/driver-main/driver_home_dashboard_screen_83.dart';
 import '../driver/driver-onboarding/driver_personal_info_screen_31.dart';
 import '../host_updated/host_dashboard_screen.dart';
 import '../host_updated/host_screen_5_property_type.dart';
+import '../../../models/host_updated_property_draft_model.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   static const String routeName = AppRoutes.roleSelection;
@@ -218,6 +219,17 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             "You do not have a host account in Zaatra, so please register your property.";
         final buttonText = popup?['buttonText']?.toString() ?? 'Register Property';
 
+        final initVals = selectResult['initialValues'] is Map ? (selectResult['initialValues'] as Map) : null;
+        final cleanName = widget.userName.trim();
+        final effectiveName = (initVals?['fullName']?.toString().isNotEmpty == true)
+            ? initVals!['fullName'].toString()
+            : ((cleanName.isNotEmpty && cleanName.toLowerCase() != 'user') ? cleanName : '');
+        final effectivePhone = (initVals?['phone']?.toString().isNotEmpty == true)
+            ? initVals!['phone'].toString()
+            : phone;
+        final effectiveEmail = initVals?['email']?.toString() ?? '';
+        final effectiveCity = initVals?['city']?.toString() ?? '';
+
         _showAccountNotFoundDialog(
           title: title,
           message: message,
@@ -226,7 +238,14 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const HostScreen5PropertyType(),
+                builder: (context) => HostScreen5PropertyType(
+                  draft: HostUpdatedPropertyDraft(
+                    hostPhone: effectivePhone,
+                    hostName: effectiveName,
+                    hostEmail: effectiveEmail,
+                    city: effectiveCity,
+                  ),
+                ),
               ),
             );
           },

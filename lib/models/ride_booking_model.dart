@@ -467,9 +467,17 @@ class RideDriver {
         vehicleMap?['name']?.toString() ??
         defaultCar ?? '';
     final plate = json['vehicleNumber']?.toString() ??
+        json['vehicleNumberPlate']?.toString() ??
         json['numberPlate']?.toString() ??
+        json['plate']?.toString() ??
+        vehicleMap?['vehicleNumberPlate']?.toString() ??
         vehicleMap?['numberPlate']?.toString() ??
-        defaultPlate ?? '';
+        vehicleMap?['vehicleNumber']?.toString() ??
+        vehicleMap?['plate']?.toString() ??
+        rootJson?['vehicleNumberPlate']?.toString() ??
+        rootJson?['numberPlate']?.toString() ??
+        defaultPlate ??
+        '';
 
     final summary = json['driverSummary']?.toString() ??
         driverMap?['driverSummary']?.toString() ??

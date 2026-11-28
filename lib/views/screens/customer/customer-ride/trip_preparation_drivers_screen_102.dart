@@ -4,6 +4,7 @@ import '../../../../models/ride_booking_model.dart';
 import '../../../../services/api_service.dart';
 import '../../../../services/ride_service.dart';
 import 'driver_booking_detail_screen_104.dart';
+import 'select_boarding_point_screen_105.dart';
 
 class TripPreparationDriversScreen extends StatefulWidget {
   final String pickup;
@@ -367,8 +368,8 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                           : 'Cost Per Ride'))
                                   : 'Cost Per Seat ₹ ${driver.pricePerSeat.toStringAsFixed(0)}';
 
-                              void navigateToDetails() {
-                                final session = RideBookingSession(
+                              RideBookingSession buildSession() {
+                                return RideBookingSession(
                                   driver: driver,
                                   pickup: widget.pickup,
                                   destination: widget.destination,
@@ -384,11 +385,26 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                   customerPickupAddress: widget.pickup,
                                   customerDropAddress: widget.destination,
                                 );
+                              }
 
+                              void navigateToDetails() {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => DriverBookingDetailScreen(session: session),
+                                    builder: (context) => DriverBookingDetailScreen(session: buildSession()),
+                                  ),
+                                );
+                              }
+
+                              void navigateToBoardingPoint() {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SelectBoardingPointScreen105(
+                                      session: buildSession(),
+                                      driver: driver,
+                                      initialFare: seatsFare,
+                                    ),
                                   ),
                                 );
                               }
@@ -451,7 +467,7 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                 bottom: 0,
                                                 right: 0,
                                                 child: Image.asset(
-                                                  'assets/images/Vector.png',
+                                                  'assets/images/codicon_verified-filled.png',
                                                   width: 18,
                                                   height: 18,
                                                 ),
@@ -478,40 +494,36 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
                                               ],
-                                              if (driver.rating > 0) ...[
-                                                const SizedBox(height: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFFFF4EC),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(Icons.star_rounded, color: Color(0xFFFF7A00), size: 14),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        '${driver.rating}',
-                                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                                      ),
-                                                    ],
-                                                  ),
+                                              const SizedBox(height: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFFFF4EC),
+                                                  borderRadius: BorderRadius.circular(8),
                                                 ),
-                                              ],
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.star_rounded, color: Color(0xFFFF7A00), size: 14),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      driver.rating > 0 ? driver.rating.toStringAsFixed(1) : 'New',
+                                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        // Share and Favorite Action Icons
+                                        // Share and Favorite Action Icons (12px gap)
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF6750A4)),
-                                              padding: const EdgeInsets.all(6),
-                                              constraints: const BoxConstraints(),
-                                              onPressed: () {
+                                            InkWell(
+                                              borderRadius: BorderRadius.circular(20),
+                                              onTap: () {
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   const SnackBar(
                                                     content: Text('Feature coming soon'),
@@ -519,17 +531,20 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                   ),
                                                 );
                                               },
-                                            ),
-                                            const SizedBox(width: 6),
-                                            IconButton(
-                                              icon: Icon(
-                                                _favoriteDriverIds.contains(driver.id) ? Icons.favorite : Icons.favorite_border,
-                                                size: 22,
-                                                color: const Color(0xFF6750A4),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: Image.asset(
+                                                  'assets/images/basil_share-solid.png',
+                                                  width: 20,
+                                                  height: 20,
+                                                  fit: BoxFit.contain,
+                                                ),
                                               ),
-                                              padding: const EdgeInsets.all(6),
-                                              constraints: const BoxConstraints(),
-                                              onPressed: () {
+                                            ),
+                                            const SizedBox(width: 12),
+                                            InkWell(
+                                              borderRadius: BorderRadius.circular(20),
+                                              onTap: () {
                                                 setState(() {
                                                   if (_favoriteDriverIds.contains(driver.id)) {
                                                     _favoriteDriverIds.remove(driver.id);
@@ -538,6 +553,21 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                                   }
                                                 });
                                               },
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: _favoriteDriverIds.contains(driver.id)
+                                                    ? Image.asset(
+                                                        'assets/images/ant-design_heart-filled.png',
+                                                        width: 20,
+                                                        height: 20,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                    : const Icon(
+                                                        Icons.favorite_border_rounded,
+                                                        size: 21,
+                                                        color: Color(0xFF543EE0),
+                                                      ),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -545,8 +575,27 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                       ],
                                     ),
 
-                                    const SizedBox(height: 16),
-                                    const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                                    const SizedBox(height: 14),
+
+                                    // Blue View Details Button (opens Screen 104)
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 44,
+                                      child: ElevatedButton(
+                                        onPressed: navigateToDetails,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF543EE0),
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                        child: const Text(
+                                          'View Details',
+                                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+
                                     const SizedBox(height: 14),
 
                                     // Timeline Row: Origin -> Destination
@@ -589,14 +638,37 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
                                             ],
                                           ),
                                         ),
-                                        // Dotted Arrow Line
+                                        // Dotted Line Indicator matching Figma 102
                                         Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Container(width: 24, height: 1.5, color: const Color(0xFFCCCCCC)),
-                                              const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFFCCCCCC)),
+                                              Container(
+                                                width: 5,
+                                                height: 5,
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFF9E9E9E),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              ...List.generate(
+                                                6,
+                                                (_) => Container(
+                                                  width: 4,
+                                                  height: 1.5,
+                                                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                                                  color: const Color(0xFFBDBDBD),
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 5,
+                                                height: 5,
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFF9E9E9E),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -779,21 +851,21 @@ class _TripPreparationDriversScreenState extends State<TripPreparationDriversScr
 
                                     const SizedBox(height: 16),
 
-                                    // View Details Action Button
+                                    // Light Lavender Cost Per Ride / Cost Per Seat Button (opens Screen 105)
                                     SizedBox(
                                       width: double.infinity,
                                       height: 48,
                                       child: ElevatedButton(
-                                        onPressed: navigateToDetails,
+                                        onPressed: navigateToBoardingPoint,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
+                                          backgroundColor: AppColors.primaryBackground,
+                                          foregroundColor: AppColors.primary,
                                           elevation: 0,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                         ),
-                                        child: const Text(
-                                          'View Details',
-                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                        child: Text(
+                                          priceLabel,
+                                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
                                         ),
                                       ),
                                     ),

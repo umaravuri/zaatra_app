@@ -247,6 +247,14 @@ class _HostScreen16UnitTypeState extends State<HostScreen16UnitType> {
 
     return InkWell(
       onTap: () {
+        if (value.toLowerCase().contains('event')) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => HostEventScreen11EventTypes(draft: _draft),
+            ),
+          );
+          return;
+        }
         setState(() => _purpose = value);
       },
       borderRadius: BorderRadius.circular(8),

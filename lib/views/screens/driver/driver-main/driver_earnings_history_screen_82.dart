@@ -968,7 +968,9 @@ class _DriverEarningsHistoryScreenState extends State<DriverEarningsHistoryScree
               if (isExpanded) {
                 _expandedTripIndices.remove(index);
               } else {
-                _expandedTripIndices.add(index);
+                _expandedTripIndices
+                  ..clear()
+                  ..add(index);
               }
             });
 

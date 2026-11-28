@@ -607,6 +607,112 @@ class DriverService {
     }
   }
 
+  /// Extracts driver avatar URL from profile/photo API payloads
+  static String? _extractAvatarUrl(Map<String, dynamic> res) {
+    final driver = res['driver'] is Map ? res['driver'] as Map : null;
+    final data = res['data'] is Map ? res['data'] as Map : null;
+    final candidates = [
+      res['avatarUrl'],
+      res['driverPhotoUrl'],
+      res['avatar'],
+      res['driverPhoto'],
+      res['photoUrl'],
+      res['photo'],
+      driver?['avatarUrl'],
+      driver?['driverPhotoUrl'],
+      driver?['avatar'],
+      driver?['driverPhoto'],
+      data?['avatarUrl'],
+      data?['driverPhotoUrl'],
+      data?['avatar'],
+      data?['driverPhoto'],
+    ];
+    for (final c in candidates) {
+      if (c != null && c.toString().trim().isNotEmpty) {
+        return c.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  /// API 2: Driver Profile Photo Upload & Sync
+  /// Endpoint: POST /api/drivers/profile/photo (Alias: /api/drivers/avatar)
+  static Future<Map<String, dynamic>> uploadProfilePhoto(dynamic file) async {
+    try {
+      var res = await ApiService.uploadMultipart(
+        '/drivers/profile/photo',
+        fieldName: 'photo',
+        files: [file],
+      );
+      if (res['success'] != true &&
+          (res['statusCode'] == 404 || res['statusCode'] == 405)) {
+        res = await ApiService.uploadMultipart(
+          '/drivers/avatar',
+          fieldName: 'photo',
+          files: [file],
+        );
+      }
+
+      if (res['success'] == true) {
+        final photoUrl = _extractAvatarUrl(res);
+        if (photoUrl != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final currentPhone = prefs.getString('currentPhone') ?? '';
+          final cleanDigits = currentPhone.replaceAll(RegExp(r'[^0-9]'), '');
+          if (cleanDigits.isNotEmpty) {
+            await prefs.setString('driver_photo_url_$cleanDigits', photoUrl);
+          }
+          await prefs.setString('driver_photo_url', photoUrl);
+        }
+        return {
+          ...res,
+          if (photoUrl != null) 'resolvedPhotoUrl': photoUrl,
+        };
+      }
+      return res;
+    } catch (e) {
+      debugPrint('⚠️ [DriverService] uploadProfilePhoto error: $e');
+      return {
+        'success': false,
+        'message': 'Failed to upload profile photo: $e',
+      };
+    }
+  }
+
+  /// GET Driver Profile Photo: GET /api/drivers/profile/photo (Alias: /api/drivers/avatar)
+  static Future<Map<String, dynamic>> getProfilePhoto() async {
+    try {
+      var res = await ApiService.get('/drivers/profile/photo');
+      if (res['success'] != true &&
+          (res['statusCode'] == 404 || res['statusCode'] == 405)) {
+        res = await ApiService.get('/drivers/avatar');
+      }
+      if (res['success'] == true) {
+        final photoUrl = _extractAvatarUrl(res);
+        if (photoUrl != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final currentPhone = prefs.getString('currentPhone') ?? '';
+          final cleanDigits = currentPhone.replaceAll(RegExp(r'[^0-9]'), '');
+          if (cleanDigits.isNotEmpty) {
+            await prefs.setString('driver_photo_url_$cleanDigits', photoUrl);
+          }
+          await prefs.setString('driver_photo_url', photoUrl);
+        }
+        return {
+          ...res,
+          if (photoUrl != null) 'resolvedPhotoUrl': photoUrl,
+        };
+      }
+      return res;
+    } catch (e) {
+      debugPrint('⚠️ [DriverService] getProfilePhoto error: $e');
+      return {
+        'success': false,
+        'message': 'Failed to load profile photo',
+      };
+    }
+  }
+
   // 11. PUT Update Driver Personal Information (Edit Profile)
   // Endpoint: PUT /drivers/profile/personal
   static Future<Map<String, dynamic>> updatePersonalInfo({
@@ -694,6 +800,53 @@ class DriverService {
             await prefs.setString('driver_vehicle_model', v['vehicleModel'].toString());
           }
         }
+
+        // If backend returned canPostRide != true because driver is offline/unavailable,
+        // verify vehicle registration independently so offline drivers with a vehicle can post,
+        // and offline drivers without a vehicle still get the Vehicle Not Registered popup.
+        if (res['canPostRide'] != true) {
+          final popup = res['popup'] is Map ? res['popup'] as Map : null;
+          final btnLower = (popup?['buttonText'] ?? '').toString().toLowerCase();
+          final titleLower = (popup?['title'] ?? '').toString().toLowerCase();
+          final descLower = (popup?['description'] ?? '').toString().toLowerCase();
+          final isAvailabilityPopup = btnLower.contains('availability') ||
+              btnLower.contains('turn on') ||
+              titleLower.contains('availability') ||
+              titleLower.contains('status') ||
+              descLower.contains('availability') ||
+              descLower.contains('offline');
+
+          if (isAvailabilityPopup) {
+            final hasVehicle = res['hasVehicle'] == true
+                ? true
+                : await hasRegisteredVehicle(phone: phone);
+            if (hasVehicle) {
+              return {
+                'success': true,
+                'canPostRide': true,
+                'hasVehicle': true,
+                'action': 'OPEN_RIDE_POSTING_FORM',
+                'targetScreen': 'RidePostingScreen',
+                'message': 'Vehicle details verified.',
+              };
+            }
+            return {
+              'success': true,
+              'canPostRide': false,
+              'hasVehicle': false,
+              'action': 'OPEN_VEHICLE_INFO_FORM',
+              'targetScreen': 'VehicleInformationScreen',
+              'popup': {
+                'showPopup': true,
+                'title': 'Vehicle Not Registered',
+                'description': 'You need to register your vehicle before you can post a ride.',
+                'buttonText': 'Register Vehicle',
+                'cancelText': 'Cancel',
+              },
+            };
+          }
+        }
+
         return res;
       }
 

@@ -8,14 +8,17 @@ import '../../../services/host_api_service.dart';
 import '../../../core/utils/host_validators.dart';
 import 'widgets/host_components.dart';
 import 'host_event_screen_11_event_types.dart';
+import 'host_event_screen_15_venue_facilities.dart';
 
 /// Figma: frame 1228744515 (node 1:2312)
 class HostScreen15AccommodationRooms extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
+  final Map<String, dynamic>? eventData;
 
   const HostScreen15AccommodationRooms({
     super.key,
     required this.draft,
+    this.eventData,
   });
 
   @override
@@ -151,6 +154,25 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
 
   void _onContinue() async {
     if (!_hasAccommodationRooms) {
+      if (widget.eventData != null) {
+        final updatedEventData = {
+          ...widget.eventData!,
+          'guestAccommodation': {'hasAccommodation': false},
+        };
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HostEventScreen15VenueFacilities(
+              draft: _draft,
+              eventData: updatedEventData,
+            ),
+          ),
+        );
+        if (result != null && result is HostUpdatedPropertyDraft && mounted) {
+          Navigator.pop(context, result);
+        }
+        return;
+      }
       Navigator.pop(context, _draft);
       return;
     }
@@ -221,6 +243,29 @@ class _HostScreen15AccommodationRoomsState extends State<HostScreen15Accommodati
         backgroundColor: Color(0xFF2E7D32),
       ),
     );
+
+    if (widget.eventData != null) {
+      final updatedEventData = {
+        ...widget.eventData!,
+        'guestAccommodation': {
+          'hasAccommodation': true,
+          ...accommodationUnit,
+        },
+      };
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HostEventScreen15VenueFacilities(
+            draft: updatedDraft,
+            eventData: updatedEventData,
+          ),
+        ),
+      );
+      if (result != null && result is HostUpdatedPropertyDraft && mounted) {
+        Navigator.pop(context, result);
+      }
+      return;
+    }
 
     Navigator.pop(context, updatedDraft);
   }

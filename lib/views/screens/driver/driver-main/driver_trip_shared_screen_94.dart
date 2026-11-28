@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../services/driver_service.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/ride_service.dart';
 import '../../../../services/trip_card_share.dart';
@@ -231,26 +230,92 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
     return <Map<String, dynamic>>[];
   }
 
+  /// Propagates passenger names across all seats of a multi-seat booking
+  /// when the backend leaves extra seats with a generic 'Passenger' / empty name.
+  List<Map<String, dynamic>> _normalizeSeatsPassengerNames(
+    List<Map<String, dynamic>> rawSeats,
+    Map<String, dynamic>? root,
+  ) {
+    bool isGeneric(String? name) {
+      if (name == null) return true;
+      final n = name.trim().toLowerCase();
+      return n.isEmpty || n == 'passenger' || n == 'guest' || n == 'booked';
+    }
+
+    final Map<String, String> bookingIdToName = {};
+    for (final s in rawSeats) {
+      final bId = (s['bookingId'] ?? s['booking_id'] ?? '').toString().trim();
+      final pName = s['passengerName']?.toString().trim();
+      if (bId.isNotEmpty && !isGeneric(pName)) {
+        bookingIdToName[bId] = pName!;
+      }
+    }
+
+    final List<String> expandedPassengerNames = [];
+    final pList = root?['passengers'];
+    if (pList is List) {
+      for (final p in pList) {
+        if (p is Map) {
+          final pName = (p['name'] ?? p['passengerName'] ?? '').toString().trim();
+          final bId = (p['bookingId'] ?? p['booking_id'] ?? '').toString().trim();
+          if (bId.isNotEmpty && !isGeneric(pName)) {
+            bookingIdToName[bId] = pName;
+          }
+          final rawCount = p['seats'] ?? p['seatsCount'] ?? p['seatsBooked'] ?? 1;
+          final count = (int.tryParse(rawCount.toString()) ?? 1).clamp(1, 12);
+          for (int k = 0; k < count; k++) {
+            expandedPassengerNames.add(pName);
+          }
+        }
+      }
+    }
+
+    int bookedIdx = 0;
+    return rawSeats.map((s) {
+      final copy = Map<String, dynamic>.from(s);
+      final isBooked = copy['isBooked'] == true || copy['status'] == 'booked';
+      if (isBooked) {
+        final currentName = copy['passengerName']?.toString();
+        if (isGeneric(currentName)) {
+          final bId = (copy['bookingId'] ?? copy['booking_id'] ?? '').toString().trim();
+          if (bId.isNotEmpty && bookingIdToName.containsKey(bId)) {
+            copy['passengerName'] = bookingIdToName[bId];
+          } else if (bookedIdx < expandedPassengerNames.length &&
+              !isGeneric(expandedPassengerNames[bookedIdx])) {
+            copy['passengerName'] = expandedPassengerNames[bookedIdx];
+          }
+        }
+        bookedIdx++;
+      }
+      return copy;
+    }).toList();
+  }
+
   List<Map<String, dynamic>> _buildSeatsFromData(Map<String, dynamic>? data, String stage) {
     if (data != null && data['passengers'] is List && (data['passengers'] as List).isNotEmpty) {
       final pList = data['passengers'] as List;
       final seats = <Map<String, dynamic>>[];
       for (int i = 0; i < pList.length; i++) {
         final p = pList[i];
-        final pName = p is Map ? (p['name'] ?? p['passengerName'] ?? 'Passenger ${i + 1}') : p.toString();
+        final pName = p is Map ? (p['name'] ?? p['passengerName'] ?? 'Passenger ${i + 1}').toString() : p.toString();
         final isBoarded = p is Map ? (p['isBoarded'] == true || p['status'] == 'BOARDED') : false;
-        seats.add({
-          'seatNumber': 'S-${i + 1}',
-          'label': 'S-${i + 1} Booked',
-          'displayLabel': isBoarded ? 'S-${i + 1} In Car' : 'S-${i + 1} Booked',
-          'status': isBoarded ? 'completed' : 'booked',
-          'isBooked': true,
-          'isBoarded': isBoarded,
-          'badge': isBoarded ? 'In Car' : 'Booked',
-          'passengerName': pName,
-          'icon': 'user',
-          'color': '#E9D8FD',
-        });
+        final rawCount = p is Map ? (p['seats'] ?? p['seatsCount'] ?? p['seatsBooked'] ?? 1) : 1;
+        final seatCount = (int.tryParse(rawCount.toString()) ?? 1).clamp(1, 12);
+        for (int sIdx = 0; sIdx < seatCount; sIdx++) {
+          final seatNum = seats.length + 1;
+          seats.add({
+            'seatNumber': 'S-$seatNum',
+            'label': 'S-$seatNum Booked',
+            'displayLabel': isBoarded ? 'S-$seatNum In Car' : 'S-$seatNum Booked',
+            'status': isBoarded ? 'completed' : 'booked',
+            'isBooked': true,
+            'isBoarded': isBoarded,
+            'badge': isBoarded ? 'In Car' : 'Booked',
+            'passengerName': pName,
+            'icon': 'user',
+            'color': '#E9D8FD',
+          });
+        }
       }
       final total = (data['totalSeats'] is int) ? data['totalSeats'] as int : 4;
       while (seats.length < total) {
@@ -309,7 +374,10 @@ class _DriverTripSharedScreenState extends State<DriverTripSharedScreen> {
             _timeline = List<Map<String, dynamic>>.from(res['routeTimeline']);
           }
           if (res['seatsAvailable'] is List && (res['seatsAvailable'] as List).isNotEmpty) {
-            _seats = List<Map<String, dynamic>>.from(res['seatsAvailable']);
+            _seats = _normalizeSeatsPassengerNames(
+              List<Map<String, dynamic>>.from(res['seatsAvailable']),
+              res,
+            );
           }
           if (res['pickupProgression'] is Map) {
             _pickupProgression = Map<String, dynamic>.from(res['pickupProgression']);

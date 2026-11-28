@@ -27,22 +27,23 @@ class HostDashboardScreen extends StatefulWidget {
 
 class _HostDashboardScreenState extends State<HostDashboardScreen> {
   int _currentIndex = 0;
-  String _hostName = 'Manohar';
+  String _hostName = 'Host';
   bool _isLoading = false;
+  String? _dashboardError;
   String _selectedPeriod = 'this_month';
-  String _greeting = 'Hello, Manohar 👋';
-  String _subGreeting = 'Good Morning !';
+  String _greeting = 'Hello, Host 👋';
+  String _subGreeting = 'Welcome back!';
   String? _avatarUrl;
-  String _totalEarningsFormatted = '₹ 1,24,256';
-  String _totalEarningsGrowth = '+12.9% This Month';
-  String _occupancyFormatted = '78%';
-  String _occupancyGrowth = '+8% this month';
-  String _propertyCount = '06';
-  String _activeBookingsCount = '12';
-  String _upcomingBookingsCount = '5';
-  String _reviewsRating = '4.8';
-  List<String> _chartLabels = const ['1 May', '7 May', '14 May', '21 May', '31 May'];
-  List<num> _chartData = const [40000, 75000, 95000, 125000, 160000];
+  String _totalEarningsFormatted = '₹ 0';
+  String _totalEarningsGrowth = '0% This Month';
+  String _occupancyFormatted = '0%';
+  String _occupancyGrowth = '0% this month';
+  String _propertyCount = '00';
+  String _activeBookingsCount = '0';
+  String _upcomingBookingsCount = '0';
+  String _reviewsRating = '0.0';
+  List<String> _chartLabels = const ['', '', '', '', ''];
+  List<num> _chartData = const [0, 0, 0, 0, 0];
   String _chartCurrency = '₹';
   List<Map<String, dynamic>> _recentBookings = [];
 
@@ -55,17 +56,29 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
 
   void _resolveHostName() async {
     if (widget.userName != null && widget.userName!.trim().isNotEmpty) {
-      if (mounted) setState(() => _hostName = widget.userName!.trim());
+      final name = widget.userName!.trim();
+      if (mounted) {
+        setState(() {
+          _hostName = name;
+          _greeting = 'Hello, $name 👋';
+        });
+      }
       return;
     }
     final name = await AuthService.getUserName();
     if (name.isNotEmpty && mounted) {
-      setState(() => _hostName = name);
+      setState(() {
+        _hostName = name;
+        _greeting = 'Hello, $name 👋';
+      });
     }
   }
 
   Future<void> _fetchDashboard([String period = 'this_month']) async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _dashboardError = null;
+    });
     final res = await HostApiService.getDashboard(period: period);
     if (!mounted) return;
 
@@ -129,7 +142,10 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         _recentBookings = bookings;
       });
     } else {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _dashboardError = res['message']?.toString() ?? 'Could not load live dashboard data';
+      });
     }
   }
 
@@ -355,6 +371,45 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             if (_isLoading) ...[
               const SizedBox(height: 8),
               const LinearProgressIndicator(color: Color(0xFF5E42C2), minHeight: 2),
+            ],
+            if (!_isLoading && _dashboardError != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFFB74D)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFE65100)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _dashboardError!,
+                        style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFFE65100)),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _fetchDashboard(_selectedPeriod),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Retry',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF5E42C2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
             const SizedBox(height: 20),
 
@@ -743,7 +798,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
       rest = rest.substring(0, rest.length - 2);
     }
     if (rest.isNotEmpty) parts.insert(0, rest);
-    return 'last3';
+    return '${parts.join(',')},$last3';
   }
 
   Widget _buildBookingCard(Map<String, dynamic> booking) {

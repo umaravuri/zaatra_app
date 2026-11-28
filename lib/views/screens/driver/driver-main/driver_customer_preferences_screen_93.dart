@@ -781,7 +781,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
 
                     ..._buildSectionItems(_template.driverPreferences),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 4),
 
                     // ==================== SECTION 2: CUSTOMER PREFERENCES ====================
                     _buildSectionHeader(_template.customerPreferences.title),
@@ -802,7 +802,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                       },
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // ==================== SECTION 3: RIDE FEATURES ====================
                     _buildSectionHeader(_template.rideFeatures.title),
@@ -880,9 +880,25 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
       if (item.key == 'smokingAllowed' || item.key == 'smoking' || item.id == 'cp-smoking') {
         widgets.add(Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _buildSmokingCard(
-            item: item,
+          child: _buildAllowedToggleCard(
+            title: 'Smoking allowed or not allowed',
+            isAllowed: item.enabled,
+            allowedIcon: Icons.smoking_rooms_rounded,
+            notAllowedIcon: Icons.smoke_free_rounded,
             onChanged: (allowed) => setState(() => item.enabled = allowed),
+          ),
+        ));
+      } else if (section == _template.customerPreferences && item.isCustom) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildAllowedToggleCard(
+            title: item.label,
+            isAllowed: item.enabled,
+            allowedIcon: Icons.check_circle_outline_rounded,
+            notAllowedIcon: Icons.block_rounded,
+            isCustom: true,
+            onChanged: (allowed) => setState(() => item.enabled = allowed),
+            onDelete: () => setState(() => section.items.removeAt(i)),
           ),
         ));
       } else if (item.type == PreferenceItemType.counter && !item.isCustom) {
@@ -922,16 +938,21 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
     return widgets;
   }
 
-  Widget _buildSmokingCard({
-    required PreferenceItem item,
+  Widget _buildAllowedToggleCard({
+    required String title,
+    required bool isAllowed,
+    required IconData allowedIcon,
+    required IconData notAllowedIcon,
     required ValueChanged<bool> onChanged,
+    bool isCustom = false,
+    VoidCallback? onDelete,
   }) {
-    final isAllowed = item.enabled;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF3EDF7),
         borderRadius: BorderRadius.circular(14),
+        border: isCustom ? Border.all(color: AppColors.primary.withAlpha(40)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -939,17 +960,27 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
           Row(
             children: [
               Icon(
-                isAllowed ? Icons.smoking_rooms_rounded : Icons.smoke_free_rounded,
+                isAllowed ? allowedIcon : notAllowedIcon,
                 size: 20,
-                color: isAllowed ? const Color(0xFFE65100) : AppColors.primary,
+                color: isAllowed && allowedIcon == Icons.smoking_rooms_rounded
+                    ? const Color(0xFFE65100)
+                    : AppColors.primary,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Smoking allowed or not allowed',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
+                  title,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.textPrimary),
                 ),
               ),
+              if (isCustom && onDelete != null)
+                GestureDetector(
+                  onTap: onDelete,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -974,7 +1005,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.smoke_free_rounded,
+                          notAllowedIcon,
                           size: 16,
                           color: !isAllowed ? Colors.white : AppColors.textPrimary,
                         ),
@@ -1012,7 +1043,7 @@ class _DriverCustomerPreferencesScreenState extends State<DriverCustomerPreferen
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.smoking_rooms_rounded,
+                          allowedIcon,
                           size: 16,
                           color: isAllowed ? Colors.white : AppColors.textPrimary,
                         ),

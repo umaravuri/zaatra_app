@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/navigation/app_navigator.dart';
@@ -136,10 +137,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return AppNavigator.buildRootExitGuard(
       context: context,
       homeName: 'Customer Home',
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFBFBFE),
-        body: SafeArea(
-          child: Column(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFBFBFE),
+          body: SafeArea(
+            top: false,
+            child: Column(
             children: [
               const CustomerLocationSharingBanner(),
               Expanded(
@@ -284,6 +290,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -302,165 +309,173 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget _buildTopHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
       decoration: const BoxDecoration(
-        color: Color(0xFF673AB7),
+        gradient: LinearGradient(
+          colors: [Color(0xFF6B3EE8), Color(0xFF5328B8)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Greeting & Profile Row
-          Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/image 27.png'),
-                    fit: BoxFit.cover,
+              // Greeting & Profile Row
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/customer_avatar_38.png'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _displayName.isNotEmpty ? 'Hello, $_displayName' : 'Hello',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text('👋', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.white70, size: 13),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            _currentLocation,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w400,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _displayName.isNotEmpty ? 'Hello, $_displayName' : 'Hello',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              'assets/images/waving_hand_38.png',
+                              width: 18,
+                              height: 18,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const Text('👋', style: TextStyle(fontSize: 16)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _currentLocation,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontWeight: FontWeight.w400,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const CustomerNotificationsScreen()),
-                  );
-                  _checkUnreadNotifications();
-                },
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        shape: BoxShape.circle,
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CustomerNotificationsScreen()),
+                      );
+                      _checkUnreadNotifications();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.notifications_rounded, color: Colors.white, size: 24),
+                          if (_hasUnreadNotifications)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFF3B30),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      child: const Icon(Icons.notifications_rounded, color: Colors.white, size: 21),
                     ),
-                    if (_hasUnreadNotifications)
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF3B30),
-                            shape: BoxShape.circle,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // 3 Hero Cards (Stay, Event Halls, Ride) in a row matching 38.png
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildHeroCard(
+                      title: 'Stay',
+                      subtitle: 'Find a comfortable place to stay that feels relaxing',
+                      iconAsset: 'assets/images/hero_stay_3d_icon.png',
+                      fallbackIcon: Icons.home_rounded,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const StayRideSearchScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildHeroCard(
+                      title: 'Event Halls',
+                      subtitle: 'Find the perfect venue for your special occasion',
+                      iconAsset: 'assets/images/hero_event_3d_icon.png',
+                      fallbackIcon: Icons.celebration_rounded,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EventSearchScreen(),
                           ),
-                        ),
-                      ),
-                  ],
-                ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildHeroCard(
+                      title: 'Ride',
+                      subtitle: 'Find convenient rides to your destinations',
+                      iconAsset: 'assets/images/hero_ride_3d_icon.png',
+                      fallbackIcon: Icons.directions_car_rounded,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RideSearchMapScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-
-          const SizedBox(height: 18),
-
-          // 3 Hero Cards (Stay, Event Halls, Ride) in a row matching 38.png
-          Row(
-            children: [
-              Expanded(
-                child: _buildHeroCard(
-                  title: 'Stay',
-                  subtitle: 'Find a comfortable place to stay that feels relaxing',
-                  iconAsset: 'assets/images/hero_stay_3d_icon.png',
-                  fallbackIcon: Icons.home_rounded,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const StayRideSearchScreen()),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildHeroCard(
-                  title: 'Event Halls',
-                  subtitle: 'Find the perfect venue for your special occasion',
-                  iconAsset: 'assets/images/hero_event_3d_icon.png',
-                  fallbackIcon: Icons.celebration_rounded,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EventSearchScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildHeroCard(
-                  title: 'Ride',
-                  subtitle: 'Find convenient rides to your destinations',
-                  iconAsset: 'assets/images/hero_ride_3d_icon.png',
-                  fallbackIcon: Icons.directions_car_rounded,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RideSearchMapScreen()),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -475,16 +490,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 145,
-        padding: const EdgeInsets.all(10),
+        height: 148,
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF512DA8),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7B4EF2), Color(0xFF5A2EC6)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 6,
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 8,
               offset: const Offset(0, 3),
             ),
           ],
@@ -504,12 +523,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   subtitle,
                   style: TextStyle(
                     fontSize: 9.5,
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: Colors.white.withValues(alpha: 0.88),
                     height: 1.25,
                   ),
                   maxLines: 3,
@@ -519,28 +538,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Image.asset(
                   iconAsset,
-                  width: 32,
-                  height: 32,
+                  width: 42,
+                  height: 42,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Icon(
                     fallbackIcon,
                     color: Colors.white,
-                    size: 26,
+                    size: 28,
                   ),
                 ),
-                Container(
+                Image.asset(
+                  'assets/images/hero_chevron_right_badge.png',
                   width: 26,
                   height: 26,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+                    ),
                   ),
                 ),
               ],
@@ -764,12 +789,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   const SizedBox(height: 4),
 
                   // Location and Pricing Row
-                  if (item.hasPlatePricing)
-                    // Veg & Non-Veg plate pricing for Banquets matching 38.png
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
                           children: [
                             const Icon(Icons.location_on_outlined, size: 11, color: Color(0xFFFF5252)),
                             const SizedBox(width: 2),
@@ -783,63 +808,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                      const SizedBox(width: 4),
+                      if (item.hasPlatePricing)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(color: Color(0xFF2E7D32), shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  item.vegPrice ?? '₹ 600 / Plate',
-                                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                ),
-                              ],
+                            _buildPlatePriceRow(
+                              const Color(0xFF2E7D32),
+                              item.vegPrice ?? '₹ 600 / Plate',
                             ),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(color: Color(0xFFD32F2F), shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  item.nonVegPrice ?? '₹ 900 / Plate',
-                                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                ),
-                              ],
+                            const SizedBox(height: 2),
+                            _buildPlatePriceRow(
+                              const Color(0xFFD32F2F),
+                              item.nonVegPrice ?? '₹ 900 / Plate',
                             ),
                           ],
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 11, color: Color(0xFFFF5252)),
-                              const SizedBox(width: 2),
-                              Expanded(
-                                child: Text(
-                                  item.location,
-                                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        )
+                      else if (item.priceUnit.trim() == 'Per Event')
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              item.priceAmount,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF673AB7),
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 4),
+                            ),
+                            Text(
+                              item.priceUnit.trim(),
+                              style: const TextStyle(
+                                fontSize: 8.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
                         RichText(
                           text: TextSpan(
                             children: [
@@ -861,33 +868,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                    ],
+                  ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
 
                   // Rating and Distance Row
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.star_rounded, size: 10, color: Color(0xFFFFB800)),
-                            const SizedBox(width: 2),
-                            Text(
-                              item.rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFE65100),
-                              ),
-                            ),
-                          ],
+                      const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFF9800)),
+                      const SizedBox(width: 2),
+                      Text(
+                        item.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFE65100),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -906,6 +902,41 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
+  Widget _buildPlatePriceRow(Color indicatorColor, String priceLabel) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            border: Border.all(color: indicatorColor, width: 1),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Center(
+            child: Container(
+              width: 4.5,
+              height: 4.5,
+              decoration: BoxDecoration(
+                color: indicatorColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          priceLabel,
+          style: const TextStyle(
+            fontSize: 8.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
   // 5. Recent Cities Carousel matching 38.png
   Widget _buildRecentCitiesCarousel() {
     final cities = [
@@ -916,7 +947,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     ];
 
     return SizedBox(
-      height: 170,
+      height: 175,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cities.length,
@@ -935,37 +966,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               );
             },
-            child: Container(
-              width: 172,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            child: SizedBox(
+              width: 168,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
+                        borderRadius: BorderRadius.circular(14),
                         child: Image.asset(
                           city['image']!,
-                          height: 120,
+                          height: 140,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            height: 120,
+                            height: 140,
                             color: const Color(0xFFF3EDF7),
                             child: const Center(
                               child: Icon(Icons.location_city_rounded, size: 36, color: AppColors.primary),
@@ -994,22 +1010,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textPrimary),
-                        const SizedBox(width: 4),
-                        Text(
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textPrimary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
                           city['name']!,
                           style: const TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/host_updated_property_draft_model.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/host_service.dart';
 import '../../../services/host_api_service.dart';
 import 'host_dashboard_screen.dart';
@@ -83,10 +85,93 @@ class _HostScreen24RegistrationState extends State<HostScreen24Registration> {
       final guests = int.tryParse(firstUnit['guests']?.toString() ?? '2') ?? 2;
       final price = double.tryParse(firstUnit['basePrice']?.toString() ?? '2500') ?? 2500.0;
 
-      // STATIC: skip the legacy network registration while running on static data.
+      String resolvedPropertyId = updated.propertyId;
+
+      // Ensure new Host users have a registered Host account & JWT session before publishing
       if (!HostApiService.useStaticData) {
-        // Submit property payload via legacy service
-        await HostService.registerProperty(
+        final existingToken = await AuthService.getToken();
+        if (existingToken == null || existingToken.isEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final phone = updated.hostPhone.isNotEmpty
+              ? updated.hostPhone
+              : (prefs.getString('currentPhone') ?? '');
+          final cleanDigits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+          final ownerName = updated.owners.isNotEmpty
+              ? '${updated.owners.first['firstName'] ?? ''} ${updated.owners.first['lastName'] ?? ''}'.trim()
+              : '';
+          final repName = (updated.businessRep['firstName'] ?? '').trim();
+          final resolvedName = updated.hostName.isNotEmpty
+              ? updated.hostName
+              : (ownerName.isNotEmpty
+                  ? ownerName
+                  : (repName.isNotEmpty
+                      ? repName
+                      : (updated.invoiceName.isNotEmpty ? updated.invoiceName : 'Zaatra Host')));
+          final resolvedEmail = updated.hostEmail.isNotEmpty
+              ? updated.hostEmail
+              : ((updated.businessRep['email'] ?? '').trim().isNotEmpty
+                  ? updated.businessRep['email']!.trim()
+                  : '$cleanDigits@zaatra.com');
+          final resolvedCity = updated.city.isNotEmpty ? updated.city : 'Hyderabad';
+          final resolvedCountry = updated.country.isNotEmpty ? updated.country : 'India';
+          final resolvedLocation = updated.locationInput.isNotEmpty
+              ? updated.locationInput
+              : '$resolvedCity, $resolvedCountry';
+
+          Map<String, dynamic> regResult = {};
+          if (phone.isNotEmpty) {
+            regResult = await AuthService.registerUser(
+              name: resolvedName,
+              email: resolvedEmail,
+              phone: phone,
+              city: resolvedCity,
+              country: resolvedCountry,
+              role: 'host',
+            );
+            try {
+              await HostService.registerHost(
+                name: resolvedName,
+                email: resolvedEmail,
+                phone: phone,
+                location: resolvedLocation,
+                city: resolvedCity,
+                state: '',
+                country: resolvedCountry,
+                panNumber: updated.panNumber.isNotEmpty ? updated.panNumber : null,
+              );
+            } catch (_) {}
+
+            final selectRes = await AuthService.selectRoleMobile(phone: phone, role: 'host');
+            final token = selectRes['token']?.toString() ??
+                selectRes['data']?['token']?.toString() ??
+                regResult['token']?.toString() ??
+                regResult['data']?['token']?.toString();
+            final rawUser = (selectRes['user'] is Map
+                    ? selectRes['user']
+                    : (regResult['user'] is Map ? regResult['user'] : null))
+                as Map<String, dynamic>?;
+            final userId = rawUser?['id']?.toString() ??
+                rawUser?['_id']?.toString() ??
+                rawUser?['userId']?.toString();
+
+            if (token != null && token.isNotEmpty) {
+              await AuthService.createSession(
+                token: token,
+                role: 'host',
+                phone: phone,
+                userId: userId,
+                hostId: userId,
+                userProfile: rawUser,
+              );
+              try {
+                await AuthService.switchRole('host');
+              } catch (_) {}
+            }
+          }
+        }
+
+        // Submit property payload via HostService
+        final regPropRes = await HostService.registerProperty(
           propertyType: updated.propertyType.isNotEmpty ? updated.propertyType : 'Hotel',
           propertyName: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
           title: updated.propertyName.isNotEmpty ? updated.propertyName : 'The Blue Hotel & Suites',
@@ -103,11 +188,19 @@ class _HostScreen24RegistrationState extends State<HostScreen24Registration> {
           description: 'Complete listing published with all 3 steps verified.',
           amenities: updated.facilities,
         );
+        if (resolvedPropertyId.isEmpty) {
+          final propObj = regPropRes['property'] ?? regPropRes['data'];
+          if (propObj is Map) {
+            resolvedPropertyId = (propObj['propertyId'] ?? propObj['_id'] ?? propObj['id'] ?? '').toString();
+          } else if (regPropRes['propertyId'] != null) {
+            resolvedPropertyId = regPropRes['propertyId'].toString();
+          }
+        }
       }
 
       // Publish property listing via API 8
       final publishRes = await HostApiService.publishProperty(
-        propertyId: updated.propertyId,
+        propertyId: resolvedPropertyId,
         price: price,
       );
 

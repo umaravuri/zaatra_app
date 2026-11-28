@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../models/ride_booking_model.dart';
 import '../../../../services/api_service.dart';
@@ -7,7 +8,10 @@ import '../../../../services/google_maps_service.dart';
 import '../../../../services/ride_service.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/location_autocomplete_picker_modal.dart';
+import '../../../widgets/route_timeline_tile.dart';
 import 'passenger_details_screen_107.dart';
+import 'ride_chat_screen.dart';
+import 'select_boarding_point_screen_105.dart';
 
 class DriverBookingDetailScreen extends StatefulWidget {
   final RideBookingSession? session;
@@ -387,7 +391,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                                           bottom: 0,
                                           right: 0,
                                           child: Image.asset(
-                                            'assets/images/Vector.png',
+                                            'assets/images/codicon_verified-filled.png',
                                             width: 18,
                                             height: 18,
                                           ),
@@ -459,7 +463,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
 
                         const SizedBox(height: 12),
 
-                        // Ride Info Vertical Timeline Card with Dynamic Customer Segment Highlighting
+                        // Ride Info Vertical Timeline (Unboxed Figma 104 Style)
                         Builder(
                           builder: (context) {
                             final selectedPickup = active.boardingPoint.isNotEmpty
@@ -469,82 +473,42 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                                 ? active.destination
                                 : driver.destinationPoint;
 
-                            int pickupIdx = -1;
-                            int destIdx = -1;
-
                             if (timelineStops.isNotEmpty) {
-                              pickupIdx = timelineStops.indexWhere((s) => _isLocationMatch(s.location, selectedPickup));
-                              if (pickupIdx == -1) {
-                                pickupIdx = timelineStops.indexWhere((s) => s.type == 'start');
-                                if (pickupIdx == -1) pickupIdx = 0;
-                              }
-
-                              destIdx = timelineStops.indexWhere((s) => _isLocationMatch(s.location, selectedDestination));
-                              if (destIdx == -1) {
-                                destIdx = timelineStops.lastIndexWhere((s) => s.type == 'destination');
-                                if (destIdx == -1) destIdx = timelineStops.length - 1;
-                              }
-
-                              if (pickupIdx > destIdx) {
-                                final temp = pickupIdx;
-                                pickupIdx = destIdx;
-                                destIdx = temp;
-                              }
-                            }
-
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.border),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
-                                ],
-                              ),
-                              child: Column(
+                              return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (timelineStops.isNotEmpty) ...[
-                                    for (int i = 0; i < timelineStops.length; i++) ...[
-                                      _buildTimelineRow(
-                                        stop: timelineStops[i],
-                                        isFirst: i == 0,
-                                        isLast: i == timelineStops.length - 1,
-                                        isCustomerPickup: i == pickupIdx,
-                                        isCustomerDestination: i == destIdx,
-                                        isSegmentLineActive: i >= pickupIdx && i < destIdx,
-                                      ),
-                                    ],
-                                  ] else ...[
-                                    // Fallback: Selected origin & destination
+                                  for (int i = 0; i < timelineStops.length; i++)
                                     _buildTimelineRow(
-                                      stop: RouteTimelineStop(
-                                        time: active.time.isNotEmpty ? active.time : (_detailData?.departureTime ?? ''),
-                                        location: selectedPickup.isNotEmpty ? selectedPickup : (_detailData?.from ?? 'Pickup'),
-                                        type: 'start',
-                                      ),
-                                      isFirst: true,
-                                      isLast: false,
-                                      isCustomerPickup: true,
-                                      isCustomerDestination: false,
-                                      isSegmentLineActive: true,
+                                      stop: timelineStops[i],
+                                      isFirst: i == 0,
+                                      isLast: i == timelineStops.length - 1,
                                     ),
-                                    _buildTimelineRow(
-                                      stop: RouteTimelineStop(
-                                        time: _detailData?.arrivalTime ?? '',
-                                        location: selectedDestination.isNotEmpty ? selectedDestination : (_detailData?.to ?? 'Destination'),
-                                        type: 'destination',
-                                      ),
-                                      isFirst: false,
-                                      isLast: true,
-                                      isCustomerPickup: false,
-                                      isCustomerDestination: true,
-                                      isSegmentLineActive: false,
-                                    ),
-                                  ],
                                 ],
-                              ),
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildTimelineRow(
+                                  stop: RouteTimelineStop(
+                                    time: active.time.isNotEmpty ? active.time : (_detailData?.departureTime ?? ''),
+                                    location: selectedPickup.isNotEmpty ? selectedPickup : (_detailData?.from ?? 'Pickup'),
+                                    type: 'start',
+                                  ),
+                                  isFirst: true,
+                                  isLast: false,
+                                ),
+                                _buildTimelineRow(
+                                  stop: RouteTimelineStop(
+                                    time: _detailData?.arrivalTime ?? '',
+                                    location: selectedDestination.isNotEmpty ? selectedDestination : (_detailData?.to ?? 'Destination'),
+                                    type: 'destination',
+                                  ),
+                                  isFirst: false,
+                                  isLast: true,
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -579,98 +543,176 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                     final finalTotal = isDoorToDoorRide ? wholeCarFare : baseSeatsFare;
 
                     return Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [
                           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
                         ],
                       ),
-                      child: CustomButton(
-                        text: isDoorToDoorRide
-                            ? 'Book Whole Car • ₹${wholeCarFare.toInt()}'
-                            : 'Next',
-                        onPressed: () async {
-                          // Guard against double taps stacking two passenger screens.
-                          if (_isQuoting) return;
-                          _isQuoting = true;
-
-                          final effectivePickup = _session.boardingPoint.isNotEmpty
-                              ? _session.boardingPoint
-                              : (_session.pickup.isNotEmpty ? _session.pickup : driver.pickupPoint);
-                          final effectiveDrop = _session.destination.isNotEmpty
-                              ? _session.destination
-                              : driver.destinationPoint;
-
-                          // Obtain official Backend 2.4.0 Quote
-                          String activeQuoteId = _session.quoteId;
-                          FareQuoteResult? activeQuote = _session.fareQuote;
-
-                          try {
-                            final qRes = await RideService.quoteFare(
-                              rideId: _session.rideId.isNotEmpty ? _session.rideId : driver.id,
-                              pickupName: effectivePickup,
-                              isDoorstepPickup: isDoorToDoorRide,
-                              dropoffName: effectiveDrop,
-                              isDoorstepDrop: isDoorToDoorRide,
-                              seatsCount: isDoorToDoorRide ? wholeCarSeats : _session.seatsCount,
-                            );
-                            if (qRes['success'] == true && qRes['data'] != null) {
-                              activeQuote = FareQuoteResult.fromJson(qRes);
-                              activeQuoteId = activeQuote.quoteId;
-                            } else if (qRes['success'] != true) {
-                              // Do not continue with a client-side price the server never confirmed.
-                              _isQuoting = false;
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    qRes['message']?.toString() ?? 'Could not confirm the fare. Please try again.',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 3 Action Buttons: Contact Driver | Message Driver | Share Ride
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () async {
+                                    final phone = driver.phone.trim();
+                                    if (phone.isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Driver phone number is not available yet.')),
+                                      );
+                                      return;
+                                    }
+                                    final uri = Uri(scheme: 'tel', path: phone);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryBackground,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.phone_outlined, size: 14, color: AppColors.primary),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Contact Driver',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                            maxLines: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                  backgroundColor: Colors.redAccent,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => RideChatScreen(
+                                          bookingId: _session.bookingId,
+                                          driverName: driver.name.isNotEmpty ? driver.name : 'Driver',
+                                          vehicleInfo: driver.carModel,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.chat_bubble_outline_rounded, size: 14, color: AppColors.primary),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Message Driver',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                            maxLines: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Share link copied! Ready to share this ride.'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.share_outlined, size: 14, color: AppColors.textPrimary),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Share Ride',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                            maxLines: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          CustomButton(
+                            text: 'Continue',
+                            onPressed: () {
+                              final effectivePickup = _session.boardingPoint.isNotEmpty
+                                  ? _session.boardingPoint
+                                  : (_session.pickup.isNotEmpty ? _session.pickup : driver.pickupPoint);
+                              final effectiveDrop = _session.destination.isNotEmpty
+                                  ? _session.destination
+                                  : driver.destinationPoint;
+
+                              final nextSession = _session.copyWith(
+                                driver: driver,
+                                boardingPoint: effectivePickup,
+                                pickup: effectivePickup,
+                                destination: effectiveDrop,
+                                isDoorstepPickup: isDoorToDoorRide,
+                                seatsCount: isDoorToDoorRide ? wholeCarSeats : _session.seatsCount,
+                                totalAmount: finalTotal,
+                              );
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SelectBoardingPointScreen105(
+                                    session: nextSession,
+                                    driver: driver,
+                                    initialFare: finalTotal,
+                                  ),
                                 ),
                               );
-                              return;
-                            }
-                          } catch (_) {
-                            _isQuoting = false;
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Could not confirm the fare. Please check your connection and try again.'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
-                            return;
-                          }
-
-                          final updatedSession = _session.copyWith(
-                            driver: driver,
-                            boardingPoint: effectivePickup,
-                            pickup: effectivePickup,
-                            destination: effectiveDrop,
-                            isDoorstepPickup: isDoorToDoorRide,
-                            detourCharge: 0.0,
-                            detourDistanceKm: 0.0,
-                            perKmDetourRate: 0.0,
-                            totalAmount: activeQuote != null && activeQuote.totalPayableAmount > 0
-                                ? activeQuote.totalPayableAmount
-                                : finalTotal,
-                            quoteId: activeQuoteId,
-                            fareQuote: activeQuote,
-                          );
-
-                          _isQuoting = false;
-                          if (!context.mounted) return;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PassengerDetailsScreen(
-                                session: updatedSession,
-                              ),
-                            ),
-                          );
-                        },
+                            },
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -727,7 +769,7 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
                             bottom: 0,
                             right: 0,
                             child: Image.asset(
-                              'assets/images/Vector.png',
+                              'assets/images/codicon_verified-filled.png',
                               width: 16,
                               height: 16,
                             ),
@@ -812,203 +854,172 @@ class _DriverBookingDetailScreenState extends State<DriverBookingDetailScreen> {
     required RouteTimelineStop stop,
     required bool isFirst,
     required bool isLast,
-    bool isCustomerPickup = false,
-    bool isCustomerDestination = false,
-    bool isSegmentLineActive = false,
   }) {
-    final double dotSize = (isCustomerPickup || isCustomerDestination) ? 16.0 : 12.0;
+    const double slot = 18.0;
+    const Color greyLine = Color(0xFFE0E0E0);
 
-    BoxDecoration dotDecoration;
-    if (isCustomerPickup) {
-      // Customer's Selected Pickup Point (Blue Dot with Shadow)
-      dotDecoration = BoxDecoration(
-        color: const Color(0xFF1976D2),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1976D2).withValues(alpha: 0.35),
-            blurRadius: 6,
-            spreadRadius: 1,
-          ),
-        ],
-      );
-    } else if (isCustomerDestination) {
-      // Customer's Selected Destination Point (Green Dot with Shadow)
-      dotDecoration = BoxDecoration(
-        color: const Color(0xFF2E7D32),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2E7D32).withValues(alpha: 0.35),
-            blurRadius: 6,
-            spreadRadius: 1,
-          ),
-        ],
-      );
-    } else if (stop.type == 'start' || isFirst) {
-      dotDecoration = const BoxDecoration(
-        color: Color(0xFF9E9E9E),
-        shape: BoxShape.circle,
-      );
-    } else if (stop.type == 'destination' || isLast) {
-      dotDecoration = const BoxDecoration(
-        color: Color(0xFF9E9E9E),
-        shape: BoxShape.circle,
-      );
-    } else {
-      dotDecoration = BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFBDBDBD), width: 2),
-        shape: BoxShape.circle,
-      );
-    }
-
-    final double lineHeight = stop.landmark.isNotEmpty ? 54.0 : 40.0;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 20,
-          child: Column(
-            children: [
-              Container(
-                width: dotSize,
-                height: dotSize,
-                decoration: dotDecoration,
-                child: (isCustomerPickup || isCustomerDestination)
-                    ? Center(
-                        child: Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-              if (!isLast)
-                Container(
-                  width: isSegmentLineActive ? 4.0 : 2.0,
-                  height: lineHeight,
-                  decoration: BoxDecoration(
-                    color: isSegmentLineActive ? const Color(0xFF1976D2) : const Color(0xFFDCDCDC),
-                    borderRadius: isSegmentLineActive ? BorderRadius.circular(2) : null,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Time column right-aligned next to car / circle dot
+          SizedBox(
+            width: 64,
+            child: Align(
+              alignment: Alignment.topRight,
+              child: SizedBox(
+                height: slot,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    stop.time,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-            ],
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      stop.location,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: (isCustomerPickup || isCustomerDestination)
-                            ? FontWeight.bold
-                            : FontWeight.w600,
-                        color: isCustomerPickup
-                            ? const Color(0xFF1565C0)
-                            : (isCustomerDestination ? const Color(0xFF1B5E20) : AppColors.textPrimary),
+          const SizedBox(width: 10),
+
+          // Vertical Timeline Marker Column (little red car on start, grey dot on stops)
+          SizedBox(
+            width: 22,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: slot,
+                  child: Center(
+                    child: isFirst
+                        ? Image.asset(
+                            RouteTimelineTile.carAsset,
+                            width: 18,
+                            height: 18,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.directions_car_rounded,
+                              size: 16,
+                              color: Colors.redAccent,
+                            ),
+                          )
+                        : Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: greyLine,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                  ),
+                ),
+                if (!isLast)
+                  SizedBox(
+                    height: stop.landmark.isNotEmpty ? 42 : 28,
+                    child: Image.asset(
+                      'assets/images/Line 50.png',
+                      width: 2,
+                      height: double.infinity,
+                      fit: BoxFit.fill,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 2,
+                        color: greyLine,
                       ),
                     ),
                   ),
-                  if (isCustomerPickup) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE3F2FD),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Pickup',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1976D2),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Station Name + Landmark + Pick N Avatar Pill
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: slot),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              stop.location,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        if (stop.landmark.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            stop.landmark,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ] else if (isCustomerDestination) ...[
+                  ),
+                  if (stop.pickCount > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE5DDF6)),
                       ),
-                      child: const Text(
-                        'Destination',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2E7D32),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            stop.passengerLabel.isNotEmpty
+                                ? stop.passengerLabel
+                                : 'Pick ${stop.pickCount}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          for (int i = 0; i < stop.pickCount; i++) ...[
+                            if (i > 0) const SizedBox(width: 3),
+                            const CircleAvatar(
+                              radius: 9,
+                              backgroundColor: Color(0xFFF3EDF7),
+                              child: Icon(
+                                Icons.person_rounded,
+                                size: 11,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
                 ],
               ),
-              if (stop.landmark.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  stop.landmark,
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                ),
-              ],
-              const SizedBox(height: 2),
-              Text(
-                stop.time,
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
+            ),
           ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (stop.amountText.isNotEmpty || stop.price > 0) ...[
-              Text(
-                stop.amountText.isNotEmpty ? stop.amountText : '₹ ${stop.price.toInt()}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-              ),
-              const SizedBox(height: 4),
-            ],
-            if (stop.pickCount > 0) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3EDF7),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${stop.passengerLabel.isNotEmpty ? stop.passengerLabel : "Pick ${stop.pickCount}"} ',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                    for (int i = 0; i < stop.pickCount; i++)
-                      const Icon(Icons.person, size: 12, color: AppColors.primary),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 

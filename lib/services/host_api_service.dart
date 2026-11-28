@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../data/host_static_data.dart';
 import 'api_service.dart';
+import 'auth_service.dart';
 
 /// Centralized service handling the host-side backend APIs.
 ///
@@ -49,16 +50,24 @@ class HostApiService {
       final queryString = Uri(queryParameters: queryParams).query;
 
       final res = await ApiService.get('/hosts/dashboard?$queryString');
-      if (res['success'] == true && res['dashboard'] != null) {
-        return res;
+      if (res['success'] == true) {
+        final dash = res['dashboard'] ??
+            (res['data'] is Map ? (res['data']['dashboard'] ?? res['data']) : null);
+        if (dash is Map) {
+          return {...res, 'dashboard': Map<String, dynamic>.from(dash)};
+        }
       }
 
       // Try alternate endpoint
       final altRes = await ApiService.get('/hosts/home?$queryString');
-      if (altRes['success'] == true && altRes['dashboard'] != null) {
-        return altRes;
+      if (altRes['success'] == true) {
+        final dash = altRes['dashboard'] ??
+            (altRes['data'] is Map ? (altRes['data']['dashboard'] ?? altRes['data']) : null);
+        if (dash is Map) {
+          return {...altRes, 'dashboard': Map<String, dynamic>.from(dash)};
+        }
       }
-      return _failure('getDashboard', res['message']);
+      return _failure('getDashboard', res['message'] ?? altRes['message']);
     } catch (e) {
       return _failure('getDashboard', e);
     }
@@ -104,6 +113,22 @@ class HostApiService {
     if (useStaticData) {
       await _staticDelay();
       return HostStaticData.wizardStep(step: step, propertyId: propertyId); // STATIC
+    }
+
+    // For brand-new hosts before Screen 24 creates their JWT session,
+    // keep the wizard draft locally in HostUpdatedPropertyDraft.
+    final token = await AuthService.getToken();
+    if (token == null || token.isEmpty) {
+      return {
+        'success': true,
+        'offlineDraft': true,
+        'currentStep': step,
+        'nextStep': step + 1,
+        'property': {
+          if (propertyId != null && propertyId.isNotEmpty) 'propertyId': propertyId,
+          'isDraft': true,
+        },
+      };
     }
 
     final effectiveData = stepData ?? payload ?? <String, dynamic>{};
@@ -200,6 +225,16 @@ class HostApiService {
     if (useStaticData) {
       await _staticDelay();
       return HostStaticData.uploadedPhotos(effectiveFiles.length); // STATIC
+    }
+
+    final token = await AuthService.getToken();
+    if (token == null || token.isEmpty) {
+      return {
+        'success': true,
+        'offlineDraft': true,
+        'count': effectiveFiles.length,
+        'photos': <String>[],
+      };
     }
 
     try {

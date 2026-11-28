@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../services/api_service.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/driver_service.dart';
 import '../../authorization/login_screen_115.dart';
@@ -34,6 +36,8 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
   String _vehicleType = '-';
   String _vehiclePlate = '-';
   String _fuelType = '-';
+  String? _rcDocumentUrl;
+  String? _insuranceDocumentUrl;
   String _licenseNumber = '-';
   String _licenseType = '-';
   String _licenseValidity = '-';
@@ -46,6 +50,8 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
   String _city = '-';
   String _statusText = '-';
   Uint8List? _avatarBytes;
+  String? _avatarUrl;
+  bool _isUploadingAvatar = false;
   final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = true;
 
@@ -83,6 +89,11 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
         try {
           _avatarBytes = base64Decode(savedAvatar);
         } catch (_) {}
+      }
+      final savedPhotoUrl = prefs.getString('driver_photo_url_$cleanDigits') ??
+          prefs.getString('driver_photo_url');
+      if (savedPhotoUrl != null && savedPhotoUrl.isNotEmpty) {
+        _avatarUrl = savedPhotoUrl;
       }
 
       _vehicleName = prefs.getString('driver_vehicle_$cleanDigits') ?? 
@@ -124,6 +135,10 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
               if (p['status'] != null) {
                 _statusText = p['status'].toString();
               }
+              final pPhoto = p['avatarUrl'] ?? p['driverPhotoUrl'] ?? p['driverPhoto'] ?? p['avatar'] ?? p['photo'];
+              if (pPhoto != null && pPhoto.toString().trim().isNotEmpty) {
+                _avatarUrl = pPhoto.toString().trim();
+              }
             }
           }
         }
@@ -150,6 +165,14 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
               if (v['vehicleType'] != null) _vehicleType = v['vehicleType'].toString();
               if (v['vehicleNumberPlate'] != null) _vehiclePlate = v['vehicleNumberPlate'].toString();
               if (v['fuelType'] != null) _fuelType = v['fuelType'].toString();
+              final rcDoc = v['rcDocumentUrl'] ?? v['rcDocument'] ?? v['rcUrl'] ?? v['rc'];
+              if (rcDoc != null && rcDoc.toString().trim().isNotEmpty) {
+                _rcDocumentUrl = rcDoc.toString().trim();
+              }
+              final insDoc = v['insuranceDocumentUrl'] ?? v['insuranceDocument'] ?? v['insuranceUrl'] ?? v['insurance'];
+              if (insDoc != null && insDoc.toString().trim().isNotEmpty) {
+                _insuranceDocumentUrl = insDoc.toString().trim();
+              }
             }
           }
         }
@@ -214,6 +237,14 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
             }
             if (summaryProfile['phone'] != null && summaryProfile['phone'].toString().isNotEmpty) {
               _driverPhone = summaryProfile['phone'].toString();
+            }
+            final sumPhoto = summaryProfile['avatarUrl'] ??
+                summaryProfile['driverPhotoUrl'] ??
+                summaryProfile['driverPhoto'] ??
+                summaryProfile['avatar'] ??
+                summaryProfile['photo'];
+            if (sumPhoto != null && sumPhoto.toString().trim().isNotEmpty) {
+              _avatarUrl = sumPhoto.toString().trim();
             }
             if (summary['stats'] is Map && summary['stats']['ratings'] != null) {
               _rating = summary['stats']['ratings'].toString();
@@ -290,6 +321,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
     required String subtitle,
     required String? fileName,
     required VoidCallback onPick,
+    VoidCallback? onView,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -335,6 +367,17 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
               ],
             ),
           ),
+          if (onView != null) ...[
+            TextButton(
+              onPressed: onView,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('View', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
           TextButton(
             onPressed: onPick,
             style: TextButton.styleFrom(
@@ -384,6 +427,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
     String? prefixText,
     List<TextInputFormatter>? inputFormatters,
     int? maxLength,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -401,6 +445,7 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
             maxLength: maxLength,
+            textCapitalization: textCapitalization,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -436,12 +481,12 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
 
   // 1. Personal Information Modal (View | Edit)
   void _showPersonalInfoModal() {
-    final nameCtrl = TextEditingController(text: _driverName);
+    final nameCtrl = TextEditingController(text: _driverName == '-' ? '' : _driverName);
     final cleanDigits = _driverPhone.replaceAll(RegExp(r'[^0-9]'), '');
     final tenDigits = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : cleanDigits;
     final phoneCtrl = TextEditingController(text: tenDigits);
-    final emailCtrl = TextEditingController(text: _driverEmail);
-    final cityCtrl = TextEditingController(text: _city);
+    final emailCtrl = TextEditingController(text: _driverEmail == '-' ? '' : _driverEmail);
+    final cityCtrl = TextEditingController(text: _city == '-' ? '' : _city);
     bool isEditing = false;
     bool isSubmitting = false;
 
@@ -563,7 +608,14 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                         ],
                       ),
                     ] else ...[
-                      _buildModalTextField(label: 'Full Name', controller: nameCtrl, icon: Icons.person_outline_rounded),
+                      _buildModalTextField(
+                        label: 'Full Name',
+                        controller: nameCtrl,
+                        icon: Icons.person_outline_rounded,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s.]')),
+                        ],
+                      ),
                       _buildModalTextField(
                         label: 'Phone Number',
                         controller: phoneCtrl,
@@ -572,12 +624,24 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                         prefixText: '+91 ',
                         maxLength: 10,
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^[6-9][0-9]*')),
+                          FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(10),
                         ],
                       ),
-                      _buildModalTextField(label: 'Email Address', controller: emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-                      _buildModalTextField(label: 'Operating City / State', controller: cityCtrl, icon: Icons.location_city_rounded),
+                      _buildModalTextField(
+                        label: 'Email Address',
+                        controller: emailCtrl,
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      _buildModalTextField(
+                        label: 'Operating City / State',
+                        controller: cityCtrl,
+                        icon: Icons.location_city_rounded,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s,]')),
+                        ],
+                      ),
                       _buildModalTextField(label: 'Status (Backend-Managed)', controller: TextEditingController(text: _statusText), icon: Icons.lock_outline_rounded, readOnly: true),
                       const SizedBox(height: 18),
                       Row(
@@ -604,21 +668,33 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                                       final email = emailCtrl.text.trim();
                                       final city = cityCtrl.text.trim();
 
-                                      if (name.isEmpty) {
+                                      if (name.isEmpty || RegExp(r'[0-9]').hasMatch(name)) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Please enter your full name.'), backgroundColor: Colors.redAccent),
+                                          const SnackBar(
+                                            content: Text('Please enter a valid full name (letters only).'),
+                                            backgroundColor: Colors.redAccent,
+                                          ),
                                         );
                                         return;
                                       }
-                                      if (phone.isNotEmpty && (phone.length < 10 || !RegExp(r'^[6-9][0-9]{9}$').hasMatch(phone))) {
+                                      if (phone.isNotEmpty && !RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(content: Text('Please enter a valid 10-digit phone number.'), backgroundColor: Colors.redAccent),
                                         );
                                         return;
                                       }
-                                      if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
+                                      if (email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Please enter a valid email address.'), backgroundColor: Colors.redAccent),
+                                          const SnackBar(content: Text('Please enter a valid email address (e.g. name@domain.com).'), backgroundColor: Colors.redAccent),
+                                        );
+                                        return;
+                                      }
+                                      if (city.isNotEmpty && RegExp(r'[0-9]').hasMatch(city)) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Operating City / State can only contain letters.'),
+                                            backgroundColor: Colors.redAccent,
+                                          ),
                                         );
                                         return;
                                       }
@@ -1062,7 +1138,23 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                       _buildModalField('Number Plate', _vehiclePlate),
                       _buildModalField('Fuel Type', _fuelType),
                       _buildModalField('Capacity', _vehicleType.isNotEmpty && _vehicleType != '-' ? _vehicleType : '-'),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Uploaded Documents',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildUploadedDocumentRow(
+                        title: 'Registration Certificate (RC)',
+                        url: _rcDocumentUrl,
+                        localFile: rcDocFile,
+                      ),
+                      _buildUploadedDocumentRow(
+                        title: 'Vehicle Insurance',
+                        url: _insuranceDocumentUrl,
+                        localFile: insDocFile,
+                      ),
+                      const SizedBox(height: 20),
                       Row(
                         children: [
                           Expanded(
@@ -1098,11 +1190,55 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                         ],
                       ),
                     ] else ...[
-                      _buildModalTextField(label: 'Vehicle Name', controller: nameCtrl, icon: Icons.directions_car_rounded, hint: 'e.g. Swift Dzire, Innova, Nexon'),
-                      _buildModalTextField(label: 'Make / Brand', controller: makeCtrl, icon: Icons.branding_watermark_rounded, hint: 'e.g. Maruti Suzuki, Hyundai, Tata, Kia'),
-                      _buildModalTextField(label: 'Model', controller: modelCtrl, icon: Icons.car_repair_rounded, hint: 'e.g. VXI, ZXI, 2022'),
-                      _buildModalTextField(label: 'Vehicle Type', controller: typeCtrl, icon: Icons.category_rounded, hint: 'MPV / Sedan / SUV'),
-                      _buildModalTextField(label: 'Number Plate', controller: plateCtrl, icon: Icons.badge_outlined, hint: 'e.g. AP 09 BK 1234'),
+                      _buildModalTextField(
+                        label: 'Vehicle Name',
+                        controller: nameCtrl,
+                        icon: Icons.directions_car_rounded,
+                        hint: 'e.g. Swift Dzire, Innova, XUV700',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s]')),
+                        ],
+                      ),
+                      _buildModalTextField(
+                        label: 'Make / Brand',
+                        controller: makeCtrl,
+                        icon: Icons.branding_watermark_rounded,
+                        hint: 'e.g. Maruti Suzuki, Hyundai, Tata, Kia',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                        ],
+                      ),
+                      _buildModalTextField(
+                        label: 'Model',
+                        controller: modelCtrl,
+                        icon: Icons.car_repair_rounded,
+                        hint: 'e.g. VXI, ZXI, 2022',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s\-]')),
+                        ],
+                      ),
+                      _buildModalTextField(
+                        label: 'Vehicle Type',
+                        controller: typeCtrl,
+                        icon: Icons.category_rounded,
+                        hint: 'MPV / Sedan / SUV',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                        ],
+                      ),
+                      _buildModalTextField(
+                        label: 'Number Plate',
+                        controller: plateCtrl,
+                        icon: Icons.badge_outlined,
+                        hint: 'e.g. AP09BK1234',
+                        maxLength: 10,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                          LengthLimitingTextInputFormatter(10),
+                          _UpperCaseTextFormatter(),
+                        ],
+                      ),
                       _buildModalTextField(label: 'Fuel Type', controller: fuelCtrl, icon: Icons.local_gas_station_rounded, hint: 'Diesel / Petrol / CNG / EV'),
                       const SizedBox(height: 8),
                       const Text(
@@ -1112,15 +1248,24 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                       const SizedBox(height: 8),
                       _buildDocumentUploadBox(
                         title: 'Registration Certificate (RC)',
-                        subtitle: 'Upload vehicle RC document or photo (Max: 3 MB)',
+                        subtitle: _rcDocumentUrl != null && _rcDocumentUrl!.isNotEmpty
+                            ? 'Document uploaded on server'
+                            : 'Upload vehicle RC document or photo (Max: 3 MB)',
                         fileName: rcDocName,
+                        onView: (rcDocFile != null || (_rcDocumentUrl != null && _rcDocumentUrl!.isNotEmpty))
+                            ? () => _showDocumentPreviewDialog(
+                                  'Registration Certificate (RC)',
+                                  url: _rcDocumentUrl,
+                                  localFile: rcDocFile,
+                                )
+                            : null,
                         onPick: () {
                           _showDocumentSourcePickerSheet(
                             context: context,
                             title: 'Upload RC Document',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                rcDocName = 'size)';
+                                rcDocName = '$name ($size)';
                                 rcDocFile = fileObj;
                               });
                             },
@@ -1129,15 +1274,24 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                       ),
                       _buildDocumentUploadBox(
                         title: 'Vehicle Insurance',
-                        subtitle: 'Upload valid insurance policy copy (Max: 3 MB)',
+                        subtitle: _insuranceDocumentUrl != null && _insuranceDocumentUrl!.isNotEmpty
+                            ? 'Document uploaded on server'
+                            : 'Upload valid insurance policy copy (Max: 3 MB)',
                         fileName: insDocName,
+                        onView: (insDocFile != null || (_insuranceDocumentUrl != null && _insuranceDocumentUrl!.isNotEmpty))
+                            ? () => _showDocumentPreviewDialog(
+                                  'Vehicle Insurance',
+                                  url: _insuranceDocumentUrl,
+                                  localFile: insDocFile,
+                                )
+                            : null,
                         onPick: () {
                           _showDocumentSourcePickerSheet(
                             context: context,
                             title: 'Upload Vehicle Insurance',
                             onSelected: (fileObj, name, size) {
                               setModalState(() {
-                                insDocName = 'size)';
+                                insDocName = '$name ($size)';
                                 insDocFile = fileObj;
                               });
                             },
@@ -1174,6 +1328,24 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                                       if (vName.isEmpty && vPlate.isEmpty) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(content: Text('Please enter vehicle details.'), backgroundColor: Colors.redAccent),
+                                        );
+                                        return;
+                                      }
+                                      if (vMake.isNotEmpty && RegExp(r'[0-9]').hasMatch(vMake)) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Make / Brand cannot contain numbers.'), backgroundColor: Colors.redAccent),
+                                        );
+                                        return;
+                                      }
+                                      if (vType.isNotEmpty && RegExp(r'[0-9]').hasMatch(vType)) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Vehicle Type cannot contain numbers.'), backgroundColor: Colors.redAccent),
+                                        );
+                                        return;
+                                      }
+                                      if (vPlate.isNotEmpty && vPlate.length > 10) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Number Plate must be at most 10 characters.'), backgroundColor: Colors.redAccent),
                                         );
                                         return;
                                       }
@@ -1953,7 +2125,10 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
         return;
       }
 
-      setState(() => _avatarBytes = bytes);
+      setState(() {
+        _avatarBytes = bytes;
+        _isUploadingAvatar = true;
+      });
 
       final prefs = await SharedPreferences.getInstance();
       final currentPhone = prefs.getString('currentPhone') ?? '';
@@ -1962,17 +2137,43 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
         await prefs.setString('driver_avatar_base64_$cleanDigits', base64Encode(bytes));
       }
 
-      if (mounted) {
+      // Upload to backend: POST /api/drivers/profile/photo (alias /api/drivers/avatar)
+      final uploadRes = await DriverService.uploadProfilePhoto(file);
+      if (!mounted) return;
+      setState(() => _isUploadingAvatar = false);
+
+      if (uploadRes['success'] == true) {
+        final uploadedUrl = uploadRes['resolvedPhotoUrl']?.toString() ??
+            uploadRes['avatarUrl']?.toString() ??
+            uploadRes['driverPhotoUrl']?.toString() ??
+            uploadRes['avatar']?.toString() ??
+            uploadRes['driverPhoto']?.toString();
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+          setState(() => _avatarUrl = uploadedUrl);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile photo updated successfully! 🎉'),
+          SnackBar(
+            content: Text(
+              uploadRes['message']?.toString() ?? 'Profile photo updated successfully! 🎉',
+            ),
             backgroundColor: AppColors.success,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              uploadRes['message']?.toString() ?? 'Failed to sync photo with server.',
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isUploadingAvatar = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to pick image: $e'),
@@ -2044,23 +2245,53 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
                                 border: Border.all(color: Colors.white.withAlpha(200), width: 2),
                               ),
                               child: ClipOval(
-                                child: _avatarBytes != null
-                                    ? Image.memory(
-                                        _avatarBytes!,
-                                        width: 64,
-                                        height: 64,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          initials,
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
+                                child: _isUploadingAvatar
+                                    ? const Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
                                             color: AppColors.primary,
                                           ),
                                         ),
-                                      ),
+                                      )
+                                    : _avatarBytes != null
+                                        ? Image.memory(
+                                            _avatarBytes!,
+                                            width: 64,
+                                            height: 64,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                                            ? Image.network(
+                                                _avatarUrl!.startsWith('http')
+                                                    ? _avatarUrl!
+                                                    : '${ApiService.baseUrl.replaceAll('/api', '')}${_avatarUrl!.startsWith('/') ? _avatarUrl : '/$_avatarUrl'}',
+                                                width: 64,
+                                                height: 64,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Center(
+                                                  child: Text(
+                                                    initials,
+                                                    style: const TextStyle(
+                                                      fontSize: 22,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            : Center(
+                                                child: Text(
+                                                  initials,
+                                                  style: const TextStyle(
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              ),
                               ),
                             ),
                             Positioned(
@@ -2328,5 +2559,207 @@ class _DriverProfileSettingsScreenState extends State<DriverProfileSettingsScree
         ),
       ),
     );
+  }
+
+  Widget _buildUploadedDocumentRow({
+    required String title,
+    String? url,
+    dynamic localFile,
+  }) {
+    final hasLocal = localFile != null;
+    final hasUrl = url != null && url.trim().isNotEmpty;
+    final hasDoc = hasLocal || hasUrl;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasDoc ? AppColors.primary.withValues(alpha: 0.4) : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasDoc ? Icons.description_rounded : Icons.description_outlined,
+            color: hasDoc ? AppColors.primary : AppColors.textMuted,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  hasDoc ? 'Uploaded' : 'Not uploaded',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: hasDoc ? const Color(0xFF2E7D32) : AppColors.textSecondary,
+                    fontWeight: hasDoc ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasDoc)
+            TextButton.icon(
+              onPressed: () => _showDocumentPreviewDialog(
+                title,
+                url: url,
+                localFile: localFile,
+              ),
+              icon: const Icon(Icons.visibility_rounded, size: 16, color: AppColors.primary),
+              label: const Text(
+                'View',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDocumentPreviewDialog(
+    String title, {
+    String? url,
+    dynamic localFile,
+  }) async {
+    String? resolvedUrl;
+    if (url != null && url.trim().isNotEmpty) {
+      final clean = url.trim();
+      resolvedUrl = clean.startsWith('http')
+          ? clean
+          : '${ApiService.baseUrl.replaceAll('/api', '')}${clean.startsWith('/') ? clean : '/$clean'}';
+    }
+
+    Uint8List? localBytes;
+    String? fileName;
+    if (localFile != null) {
+      try {
+        if (localFile is XFile) {
+          fileName = localFile.name;
+          localBytes = await localFile.readAsBytes();
+        } else if (localFile is PlatformFile) {
+          fileName = localFile.name;
+          localBytes = localFile.bytes;
+        }
+      } catch (_) {}
+    }
+
+    final isPdf = (fileName ?? resolvedUrl ?? '').toLowerCase().contains('.pdf');
+    if (isPdf && resolvedUrl != null) {
+      final uri = Uri.tryParse(resolvedUrl);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        insetPadding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 420),
+              padding: const EdgeInsets.all(16),
+              child: localBytes != null
+                  ? InteractiveViewer(
+                      child: Image.memory(localBytes, fit: BoxFit.contain),
+                    )
+                  : (resolvedUrl != null
+                      ? InteractiveViewer(
+                          child: Image.network(
+                            resolvedUrl,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return const SizedBox(
+                                height: 180,
+                                child: Center(
+                                  child: CircularProgressIndicator(color: AppColors.primary),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textMuted),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Could not load document preview.',
+                                    style: TextStyle(color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('No document preview available.'),
+                        )),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }

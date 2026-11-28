@@ -100,7 +100,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length >= 10) {
       final last10 = digits.substring(digits.length - 10);
-      return '+91 ${last10.substring(3, 6)}-${last10.substring(6)}';
+      return '+91 $last10';
     }
     return raw.isNotEmpty ? raw : '+91 000-000-0000';
   }

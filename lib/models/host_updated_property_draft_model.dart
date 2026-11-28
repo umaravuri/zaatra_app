@@ -36,6 +36,9 @@ class HostUpdatedPropertyDraft {
   final String registrationGoal;
   final bool isLegitimateCertified;
   final bool acceptedTerms;
+  final String hostPhone;
+  final String hostName;
+  final String hostEmail;
 
   const HostUpdatedPropertyDraft({
     this.propertyId = '',
@@ -75,6 +78,9 @@ class HostUpdatedPropertyDraft {
     this.registrationGoal = 'bookings',
     this.isLegitimateCertified = false,
     this.acceptedTerms = true,
+    this.hostPhone = '',
+    this.hostName = '',
+    this.hostEmail = '',
   });
 
   String get listingScope =>
@@ -118,6 +124,9 @@ class HostUpdatedPropertyDraft {
     String? registrationGoal,
     bool? isLegitimateCertified,
     bool? acceptedTerms,
+    String? hostPhone,
+    String? hostName,
+    String? hostEmail,
   }) {
     return HostUpdatedPropertyDraft(
       propertyId: propertyId ?? this.propertyId,
@@ -157,6 +166,9 @@ class HostUpdatedPropertyDraft {
       registrationGoal: registrationGoal ?? this.registrationGoal,
       isLegitimateCertified: isLegitimateCertified ?? this.isLegitimateCertified,
       acceptedTerms: acceptedTerms ?? this.acceptedTerms,
+      hostPhone: hostPhone ?? this.hostPhone,
+      hostName: hostName ?? this.hostName,
+      hostEmail: hostEmail ?? this.hostEmail,
     );
   }
 
@@ -199,6 +211,9 @@ class HostUpdatedPropertyDraft {
       'registrationGoal': registrationGoal,
       'isLegitimateCertified': isLegitimateCertified,
       'acceptedTerms': acceptedTerms,
+      'hostPhone': hostPhone,
+      'hostName': hostName,
+      'hostEmail': hostEmail,
     };
   }
 
@@ -244,6 +259,9 @@ class HostUpdatedPropertyDraft {
       registrationGoal: map['registrationGoal'] ?? 'bookings',
       isLegitimateCertified: map['isLegitimateCertified'] ?? false,
       acceptedTerms: map['acceptedTerms'] ?? true,
+      hostPhone: map['hostPhone'] ?? '',
+      hostName: map['hostName'] ?? '',
+      hostEmail: map['hostEmail'] ?? '',
     );
   }
 }

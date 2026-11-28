@@ -82,7 +82,7 @@ class _RideChatScreenState extends State<RideChatScreen> {
     final now = TimeOfDay.now();
     final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
     final minute = now.minute.toString().padLeft(2, '0');
-    return 'minute ${now.period == DayPeriod.am ? 'AM' : 'PM'}';
+    return '$hour:$minute ${now.period == DayPeriod.am ? 'AM' : 'PM'}';
   }
 
   void _scrollToBottom() {

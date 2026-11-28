@@ -1434,17 +1434,38 @@ class RideService {
     }
   }
 
-  /// API 7: POST /api/rides/{rideId}/complete-ride
+  /// API 7: POST /api/rides/{rideId}/complete-ride (or /drivers/rides/{rideId}/complete-ride)
   static Future<Map<String, dynamic>> completeRide({
     required String rideId,
   }) async {
     try {
-      final res = await ApiService.post('/rides/$rideId/complete-ride', {});
+      var res = await ApiService.post('/rides/$rideId/complete-ride', {'rideId': rideId});
+      if (res['success'] != true && (res['statusCode'] == 404 || res['statusCode'] == 405)) {
+        res = await ApiService.post('/drivers/rides/$rideId/complete-ride', {'rideId': rideId});
+      }
       return res;
     } catch (e) {
       return {
         'success': false,
         'message': 'Failed to complete ride: $e',
+      };
+    }
+  }
+
+  /// Endpoint 2: GET /api/rides/{rideId}/on-trip (or /drivers/rides/{rideId}/on-trip)
+  static Future<Map<String, dynamic>> getOnTripSummary({
+    required String rideId,
+  }) async {
+    try {
+      var res = await ApiService.get('/rides/$rideId/on-trip');
+      if (res['success'] != true && (res['statusCode'] == 404 || res['statusCode'] == 405)) {
+        res = await ApiService.get('/drivers/rides/$rideId/on-trip');
+      }
+      return res;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to fetch on-trip summary: $e',
       };
     }
   }

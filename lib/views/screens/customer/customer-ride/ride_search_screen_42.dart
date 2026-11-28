@@ -126,7 +126,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
       final minute = picked.minute.toString().padLeft(2, '0');
       final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
       setState(() {
-        _time = 'minute $period';
+        _time = '$hour:$minute $period';
       });
     }
   }

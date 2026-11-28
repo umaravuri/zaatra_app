@@ -41,7 +41,7 @@ information the other way round (frame -> file). Keep both up to date when a des
 | 1228744514 | 1:1970 | `host_event_screen_11_event_types.dart` |
 | 1228744515 | 1:2312 | `host_screen_15_accommodation_rooms.dart` |
 | 1228744516 | 1:2567 | `host_event_screen_17_unit_pricing.dart` |
-| 1228744517 | 1:2718 | `host_event_screen_12_venue_details.dart` |
+| 1228744517 | 1:2718 | `host_event_screen_12_selected_options.dart` |
 | 1228744518 | 1:2785 | `host_event_screen_12_venue_details.dart` |
 | 1228744519 | 1:2896 | `host_event_screen_13_capacity_stage_dining.dart` |
 | 1228744520 | 1:2993 | `host_event_screen_14_bridal_rooms.dart` |

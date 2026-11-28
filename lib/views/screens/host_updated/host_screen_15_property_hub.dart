@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
 import 'host_screen_16_unit_type.dart';
-import 'host_screen_15_accommodation_rooms.dart';
 
 class HostScreen15PropertyHub extends StatefulWidget {
   final HostUpdatedPropertyDraft draft;
@@ -71,7 +70,7 @@ class _HostScreen15PropertyHubState extends State<HostScreen15PropertyHub> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => HostScreen15AccommodationRooms(draft: updated),
+        builder: (_) => HostScreen16UnitType(draft: updated),
       ),
     );
     if (result != null && result is HostUpdatedPropertyDraft && mounted) {

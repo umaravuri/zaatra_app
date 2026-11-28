@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
-import 'host_event_screen_15_venue_facilities.dart';
+import 'host_screen_15_accommodation_rooms.dart';
 
 /// Figma: frame 1228744520 (node 1:2993)
 class HostEventScreen14BridalRooms extends StatefulWidget {
@@ -89,7 +89,7 @@ class _HostEventScreen14BridalRoomsState extends State<HostEventScreen14BridalRo
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => HostEventScreen15VenueFacilities(draft: _draft, eventData: eventData),
+        builder: (_) => HostScreen15AccommodationRooms(draft: _draft, eventData: eventData),
       ),
     );
     if (result is HostUpdatedPropertyDraft && mounted) Navigator.pop(context, result);

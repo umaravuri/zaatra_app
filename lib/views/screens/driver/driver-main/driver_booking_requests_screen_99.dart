@@ -6,6 +6,7 @@ import '../../../../services/driver_service.dart';
 import '../../../../services/ride_service.dart';
 import '../../../widgets/driver_decline_reason_modal.dart';
 import '../../../widgets/driver_detour_decision_dialog.dart';
+import '../../../widgets/driver_post_ride_guard.dart';
 import 'driver_my_ride_screen_30.dart';
 
 /// Standalone "Booking Requests" screen (app bar + background around the view).
@@ -548,6 +549,33 @@ class _DriverBookingRequestsViewState extends State<DriverBookingRequestsView> {
                         ),
                 ),
         ),
+
+        // Single pinned Publish New Ride button at the bottom of the screen
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                DriverPostRideGuard.openPostRideScreen(
+                  context,
+                  onReturned: _fetchTabData,
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 20),
+              label: const Text(
+                'Publish new ride',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: const Color(0xFFF3EDF7),
+                side: const BorderSide(color: AppColors.primary, width: 1.2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -807,31 +835,6 @@ class _DriverBookingRequestsViewState extends State<DriverBookingRequestsView> {
                   ],
                 ),
               ],
-            ),
-          ),
-
-          const Divider(height: 1, color: AppColors.border),
-
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    item.publishNewRideCta?['title']?.toString() ?? '+ Publish new ride',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

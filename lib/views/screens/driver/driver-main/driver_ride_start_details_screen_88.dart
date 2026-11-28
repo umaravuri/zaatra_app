@@ -946,24 +946,48 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
     }
     final res = await RideService.completeRide(rideId: _rideId);
     if (!mounted) return;
+    if (res['success'] != true && res['isCompleted'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Failed to complete ride. Please try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isRideStarted = false;
       _isCompleted = true;
     });
 
-    final summary = res['summary'] ?? {};
+    final summary = res['summary'] is Map ? res['summary'] as Map<String, dynamic> : res;
+    final fromCity = (res['fromCity'] ?? summary['origin'] ?? _origin.split(',').first).toString();
+    final toCity = (res['toCity'] ?? summary['destination'] ?? _destination.split(',').first).toString();
+    final dateDisplay = (res['dateDisplay'] ?? res['formattedDate'] ?? res['date'] ?? _formatRideDateDisplay(includeDistance: false)).toString();
+    final fuelSaved = (res['totalFuelSavedFormatted'] ??
+            res['formattedTotalFuelSaved'] ??
+            res['formattedFuelSaved'] ??
+            summary['formattedFuelShare'] ??
+            res['totalFuelSaved'] ??
+            res['fuelSaved'] ??
+            '--')
+        .toString();
+    final paymentMode = (res['paidBy'] ?? res['paymentMethod'] ?? summary['paymentMode'] ?? '--').toString();
+    final coTravelers = (res['coTravelersCount'] ?? res['coTravelers'] ?? res['totalPassengers'] ?? summary['totalPassengersBoarded'] ?? _passengers.length).toString();
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TripCompletedSummaryScreen(
           rideId: _rideId,
-          origin: _origin.split(',').first,
-          destination: _destination.split(',').first,
-          dateDisplay: _formatRideDateDisplay(includeDistance: false),
-          fuelSaved: summary['formattedFuelShare'] ?? '--',
-          paymentMode: summary['paymentMode']?.toString() ?? '--',
-          coTravelers: '${summary['totalPassengersBoarded'] ?? _passengers.length}',
-          summaryData: summary,
+          origin: fromCity,
+          destination: toCity,
+          dateDisplay: dateDisplay,
+          fuelSaved: fuelSaved,
+          paymentMode: paymentMode,
+          coTravelers: coTravelers,
+          summaryData: res,
         ),
       ),
     );
@@ -1005,11 +1029,24 @@ class _DriverRideStartDetailsScreenState extends State<DriverRideStartDetailsScr
   void _openShareTrip() {
     const totalSeats = 4;
     final List<Map<String, dynamic>> seatsList = [];
-    for (int i = 0; i < totalSeats; i++) {
-      final isBooked = i < _passengers.length;
+    for (final p in _passengers) {
+      final pName = (p['name'] ?? p['passengerName'] ?? 'Passenger').toString();
+      final rawCount = p['seats'] ?? p['seatsCount'] ?? p['seatsBooked'] ?? 1;
+      final seatCount = (int.tryParse(rawCount.toString()) ?? 1).clamp(1, totalSeats);
+      for (int k = 0; k < seatCount; k++) {
+        if (seatsList.length >= totalSeats) break;
+        final idx = seatsList.length + 1;
+        seatsList.add({
+          'label': 'S-$idx Booked',
+          'isBooked': true,
+          'passengerName': pName,
+        });
+      }
+    }
+    while (seatsList.length < totalSeats) {
       seatsList.add({
-        'label': isBooked ? 'S-${i + 1} Booked' : 'Available',
-        'isBooked': isBooked,
+        'label': 'Available',
+        'isBooked': false,
       });
     }
 

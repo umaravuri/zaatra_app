@@ -6,6 +6,7 @@ import '../../../../services/trip_stage.dart';
 import '../../../widgets/custom_button.dart';
 import 'driver_booking_requests_screen_99.dart';
 import '../../../widgets/driver_cancel_ride_dialog.dart';
+import '../../../widgets/driver_post_ride_guard.dart';
 import 'driver_edit_ride_screen_84.dart';
 import 'driver_home_dashboard_screen_83.dart';
 import 'driver_my_ride_screen_30.dart';
@@ -359,12 +360,11 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () async {
-                                await Navigator.push(
+                              onPressed: () {
+                                DriverPostRideGuard.openPostRideScreen(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
+                                  onReturned: _fetchRides,
                                 );
-                                _fetchRides();
                               },
                               icon: const Icon(Icons.add_rounded, color: AppColors.primary),
                               label: const Text(
@@ -852,12 +852,11 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () async {
-                await Navigator.push(
+              onPressed: () {
+                DriverPostRideGuard.openPostRideScreen(
                   context,
-                  MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
+                  onReturned: _fetchRides,
                 );
-                _fetchRides();
               },
               icon: const Icon(Icons.add_rounded, color: AppColors.primary),
               label: const Text('Publish New Ride', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),

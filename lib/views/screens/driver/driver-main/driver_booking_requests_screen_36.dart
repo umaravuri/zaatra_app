@@ -6,6 +6,7 @@ import 'driver_trip_preparation_screen_37.dart';
 import '../../../../services/api_service.dart';
 import '../../../../services/driver_service.dart';
 import '../../../widgets/driver_decline_reason_modal.dart';
+import '../../../widgets/driver_post_ride_guard.dart';
 
 class DriverBookingRequestsScreen extends StatefulWidget {
   final int initialFilterIndex;
@@ -190,6 +191,33 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                               ],
                             ),
                     ),
+            ),
+
+            // Single pinned Publish New Ride button at the bottom of the screen
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    DriverPostRideGuard.openPostRideScreen(
+                      context,
+                      onReturned: _fetchBookings,
+                    );
+                  },
+                  icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 20),
+                  label: const Text(
+                    'Publish new ride',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF3EDF7),
+                    side: const BorderSide(color: AppColors.primary, width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -611,37 +639,6 @@ class _DriverBookingRequestsScreenState extends State<DriverBookingRequestsScree
                   ],
                 ),
               ],
-            ),
-          ),
-
-          const Divider(height: 1, color: AppColors.border),
-
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
-              );
-            },
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              alignment: Alignment.center,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Publish new ride',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

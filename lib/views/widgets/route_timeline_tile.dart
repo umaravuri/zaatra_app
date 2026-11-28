@@ -31,29 +31,30 @@ class RouteTimelineTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 72,
+            width: 64,
             // Align first: the row stretches its children, which would otherwise
             // override the fixed slot height and push the time off the marker line.
             child: Align(
-              alignment: Alignment.topLeft,
+              alignment: Alignment.topRight,
               child: SizedBox(
                 height: _slot,
-                child: Center(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      time,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.textPrimary,
-                      ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    time,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.textPrimary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
             ),
           ),
+          const SizedBox(width: 10),
           SizedBox(
             width: 20,
             child: Column(
@@ -78,8 +79,16 @@ class RouteTimelineTile extends StatelessWidget {
                   ),
                 ),
                 if (!isLast)
-                  Expanded(
-                    child: Container(width: 1.5, color: _grey),
+                  SizedBox(
+                    height: 28,
+                    child: Image.asset(
+                      'assets/images/Line 50.png',
+                      width: 1.5,
+                      height: double.infinity,
+                      fit: BoxFit.fill,
+                      errorBuilder: (_, __, ___) =>
+                          Container(width: 1.5, color: _grey),
+                    ),
                   ),
               ],
             ),

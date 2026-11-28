@@ -21,6 +21,7 @@ import 'driver_support_help_screen_86.dart';
 import 'driver_trip_shared_screen_94.dart';
 import 'incoming_ride_request_dialog_31.dart';
 import '../driver-onboarding/driver_vehicle_info_screen_35.dart';
+import '../../../widgets/driver_post_ride_guard.dart';
 
 class DriverHomeDashboardScreen83 extends StatefulWidget {
   static const String routeName = AppRoutes.driverHome;
@@ -222,7 +223,7 @@ class _DriverHomeDashboardScreen83State
     }
     final cleanBase = ApiService.baseUrl.replaceAll('/api', '');
     final cleanPath = url.startsWith('/') ? url : '/$url';
-    return 'cleanPath';
+    return '$cleanBase$cleanPath';
   }
 
   bool _matchesCurrentPhone(dynamic phoneVal, String cleanDigits) {
@@ -285,7 +286,9 @@ class _DriverHomeDashboardScreen83State
           _profileImageBytes = base64Decode(savedAvatarBase64);
         } catch (_) {}
       }
-      final savedPhoto = prefs.getString('driver_photo_$cleanDigits') ??
+      final savedPhoto = prefs.getString('driver_photo_url_$cleanDigits') ??
+          prefs.getString('driver_photo_url') ??
+          prefs.getString('driver_photo_$cleanDigits') ??
           prefs.getString('profile_image_$cleanDigits') ??
           prefs.getString('current_user_avatar');
       if (savedPhoto != null &&
@@ -335,7 +338,9 @@ class _DriverHomeDashboardScreen83State
             if (summaryProfile['isOnline'] != null) {
               _isOnline = summaryProfile['isOnline'] == true;
             }
-            final photo = summaryProfile['driverPhoto'] ??
+            final photo = summaryProfile['avatarUrl'] ??
+                summaryProfile['driverPhotoUrl'] ??
+                summaryProfile['driverPhoto'] ??
                 summaryProfile['profilePicture'] ??
                 summaryProfile['avatar'] ??
                 summaryProfile['photo'] ??
@@ -353,7 +358,12 @@ class _DriverHomeDashboardScreen83State
             if (stats['rides'] != null) _ridesCount = stats['rides'].toString();
             if (stats['coTravelers'] != null)
               _coTravelers = stats['coTravelers'].toString();
-            if (stats['km'] != null) _totalKm = stats['km'].toString();
+            if (stats['km'] != null) {
+              final kmVal = double.tryParse(stats['km'].toString().trim());
+              _totalKm = kmVal != null
+                  ? kmVal.ceil().toString()
+                  : stats['km'].toString().split('.').first;
+            }
             if (stats['ratings'] != null) _rating = stats['ratings'].toString();
           }
 
@@ -438,7 +448,9 @@ class _DriverHomeDashboardScreen83State
                   p['fullName'].toString().isNotEmpty) {
                 _name = p['fullName'].toString();
               }
-              final pPhoto = p['driverPhoto'] ??
+              final pPhoto = p['avatarUrl'] ??
+                  p['driverPhotoUrl'] ??
+                  p['driverPhoto'] ??
                   p['profilePicture'] ??
                   p['avatar'] ??
                   p['photo'] ??
@@ -619,160 +631,7 @@ class _DriverHomeDashboardScreen83State
 
   Future<void> _handlePostRideTapped() async {
     // Verify vehicle registration & proceed to post ride (allowed regardless of online/offline status)
-    await _verifyAndProceedToPostRide();
-  }
-
-  Future<void> _verifyAndProceedToPostRide() async {
-    // Show loading indicator while verifying with backend API
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-    );
-
-    Map<String, dynamic> verifyRes;
-    bool verifyFailed = false;
-    try {
-      verifyRes = await DriverService.verifyPostRideEligibility();
-    } catch (_) {
-      verifyRes = {};
-      verifyFailed = true;
-    }
-
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading (always, even on failure)
-
-    if (verifyFailed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not verify your vehicle details. Please check your connection and try again.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
-    }
-
-    final canPostRide = verifyRes['canPostRide'] == true;
-
-    final popup = verifyRes['popup'] is Map
-        ? (verifyRes['popup'] as Map<String, dynamic>)
-        : null;
-    final btnLower = (popup?['buttonText'] ?? '').toString().toLowerCase();
-    final titleLower = (popup?['title'] ?? '').toString().toLowerCase();
-    final descLower = (popup?['description'] ?? '').toString().toLowerCase();
-    final isAvailabilityPopup = btnLower.contains('availability') ||
-        btnLower.contains('turn on') ||
-        titleLower.contains('availability') ||
-        titleLower.contains('status') ||
-        descLower.contains('availability');
-
-    if (canPostRide || isAvailabilityPopup) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
-      );
-    } else {
-      _showRegisterVehiclePopup(popup);
-    }
-  }
-
-  void _showRegisterVehiclePopup([Map<String, dynamic>? popup]) {
-    final title = popup?['title']?.toString() ?? 'Vehicle Not Registered';
-    final description = popup?['description']?.toString() ??
-        'You need to register your vehicle before you can post a ride.';
-    final buttonText = popup?['buttonText']?.toString() ?? 'Register Vehicle';
-    final cancelText = popup?['cancelText']?.toString() ?? 'Cancel';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF3EDF7),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.directions_car_rounded,
-                color: AppColors.primary,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1E2D),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF7A7A8C),
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DriverVehicleInfoScreen(
-                        redirectToPostRide: true,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: Text(
-                  buttonText,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                cancelText,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF7A7A8C),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    await DriverPostRideGuard.openPostRideScreen(context);
   }
 
   void _onBottomNavTapped(int index) {
@@ -830,7 +689,7 @@ class _DriverHomeDashboardScreen83State
                       // Top Scenic Header with Overlapping Floating Metrics Card
                       _buildHeaderSection(),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Categories (My Ride, Supports, Notification, Earnings)
                       Padding(
@@ -846,13 +705,13 @@ class _DriverHomeDashboardScreen83State
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             _buildCategoriesRow(),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Upcoming Ride Card
                       Padding(
@@ -868,13 +727,13 @@ class _DriverHomeDashboardScreen83State
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             _buildUpcomingRideCard(),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Today Summary
                       Padding(
@@ -890,13 +749,13 @@ class _DriverHomeDashboardScreen83State
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             _buildTodaySummaryRow(),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Monthly Summary
                       Padding(
@@ -912,7 +771,7 @@ class _DriverHomeDashboardScreen83State
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             _buildMonthlySummaryRow(),
                           ],
                         ),
@@ -1029,13 +888,9 @@ class _DriverHomeDashboardScreen83State
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(2),
                     child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/zaatra_logo_badge.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => _buildAvatarImage(),
-                      ),
+                      child: _buildAvatarImage(),
                     ),
                   ),
                 ),
@@ -1267,6 +1122,8 @@ class _DriverHomeDashboardScreen83State
         const SizedBox(height: 6),
         Text(
           value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
@@ -1545,10 +1402,10 @@ class _DriverHomeDashboardScreen83State
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFD6C7FF), width: 1.5),
         boxShadow: [
           BoxShadow(
@@ -1560,15 +1417,16 @@ class _DriverHomeDashboardScreen83State
       ),
       child: Column(
         children: [
-          // Date Badge Pill
+          // Date Badge Pill (aligned with action buttons on outer edges, text aligned with pickup place)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
             decoration: BoxDecoration(
               color: AppColors.primaryBackground,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(
+            child: Align(
+              alignment: Alignment.centerLeft,
               child: Text(
                 _upcomingDateStr,
                 style: const TextStyle(
@@ -1585,10 +1443,12 @@ class _DriverHomeDashboardScreen83State
           const SizedBox(height: 18),
 
           // Route with dotted line
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
               // Origin
               Expanded(
                 child: Column(
@@ -1690,6 +1550,7 @@ class _DriverHomeDashboardScreen83State
                 ),
               ),
             ],
+            ),
           ),
 
           const SizedBox(height: 20),

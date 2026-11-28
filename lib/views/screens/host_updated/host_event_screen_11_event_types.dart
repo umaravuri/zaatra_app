@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../models/host_updated_property_draft_model.dart';
 import 'widgets/host_components.dart';
-import 'host_event_screen_12_venue_details.dart';
-import 'host_screen_15_accommodation_rooms.dart';
+import 'host_event_screen_12_selected_options.dart';
+import 'host_screen_16_unit_type.dart';
 
 /// Figma: frame 1228744514 (node 1:1970)
 class HostEventScreen11EventTypes extends StatefulWidget {
@@ -249,7 +249,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => HostEventScreen12VenueDetails(
+        builder: (_) => HostEventScreen12SelectedOptions(
           draft: _draft,
           eventData: eventData,
         ),
@@ -299,7 +299,7 @@ class _HostEventScreen11EventTypesState extends State<HostEventScreen11EventType
                           onTap: () {
                             Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
-                                builder: (_) => HostScreen15AccommodationRooms(draft: _draft),
+                                builder: (_) => HostScreen16UnitType(draft: _draft),
                               ),
                             );
                           },

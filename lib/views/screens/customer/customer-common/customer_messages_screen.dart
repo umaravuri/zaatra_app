@@ -395,7 +395,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
     final period = now.period == DayPeriod.am ? 'AM' : 'PM';
 
     setState(() {
-      _messages.add({'isMe': true, 'text': text, 'time': 'minute $period'});
+      _messages.add({'isMe': true, 'text': text, 'time': '$hour:$minute $period'});
       _textController.clear();
     });
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../widgets/custom_button.dart';
+import '../../../widgets/driver_post_ride_guard.dart';
 import 'driver_my_ride_screen_30.dart';
 import 'driver_ride_start_screen_38.dart';
 
@@ -146,10 +147,7 @@ class DriverTripPreparationScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFFF3EDF7),
                 textColor: AppColors.primary,
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const DriverMyRideScreen()),
-                  );
+                  DriverPostRideGuard.openPostRideScreen(context);
                 },
               ),
 
